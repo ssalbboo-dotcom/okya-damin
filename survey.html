@@ -333,9 +333,11 @@ function populateTimes(){
     return;
   }
 
-  // 이미 신청된 시간(시간협의필요는 제외)은 목록에서 뺀다
+  // 이미 신청된 시간(시간협의필요는 제외, 관리자가 "중복 허용"으로 표시한 건은 제외하지 않음)
   const bookedTimes = new Set(
-    responses.filter(r => r.date === dateStr && r.time !== NEGOTIATE_LABEL).map(r => r.time)
+    responses
+      .filter(r => r.date === dateStr && r.time !== NEGOTIATE_LABEL && !r.duplicateAllowed)
+      .map(r => r.time)
   );
   const available = FIXED_TIME_OPTIONS.filter(t => t === NEGOTIATE_LABEL || !bookedTimes.has(t));
 
