@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#FAFAF7;
@@ -67,6 +68,7 @@
   }
   .title-edit-btn:hover{border-color:var(--green-soft); color:var(--green-soft);}
   .sub{color:var(--ink-soft); font-size:14px; margin:0;}
+  .hint{font-size:13px; color:var(--ink-soft); line-height:1.6;}
   main{max-width:860px; margin:0 auto; padding:0 20px;}
   section.card{
     background:var(--paper);
@@ -230,8 +232,15 @@
   <section class="card">
     <div class="card-head-row">
       <h2 style="margin:0;"><span class="tag">3</span> 참여 신청 현황</h2>
-      <button class="btn ghost small" id="exportBtn">CSV 내보내기</button>
+      <div style="display:flex; gap:8px;">
+        <label class="btn ghost small" for="importFileInput" style="cursor:pointer; margin:0;">
+          엑셀 불러오기
+          <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none;">
+        </label>
+        <button class="btn ghost small" id="exportBtn">CSV 내보내기</button>
+      </div>
     </div>
+    <p class="hint" id="importStatus" style="display:none; margin-bottom:12px;"></p>
     <div id="responseList"><p class="empty">아직 접수된 신청이 없습니다.</p></div>
   </section>
 </main>
@@ -481,6 +490,135 @@ function formatDate(dateStr){
 function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+// ------------------------------------------------------------------
+// 엑셀 불러오기 ("신입학상담신청" 시트 기준 — 컬럼명이 다르면 못 읽어옵니다)
+// ------------------------------------------------------------------
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function parseExcelDate(v){
+  if(v instanceof Date && !isNaN(v)){
+    return `${v.getFullYear()}-${pad2(v.getMonth()+1)}-${pad2(v.getDate())}`;
+  }
+  const s = String(v ?? '').trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m){
+    let mo = parseInt(m[1]), d = parseInt(m[2]), y = parseInt(m[3]);
+    if(y < 100) y += 2000;
+    return `${y}-${pad2(mo)}-${pad2(d)}`;
+  }
+  return null;
+}
+
+function normalizeTime(raw){
+  const s = String(raw ?? '').trim();
+  if(s.replace(/\s/g,'') === '시간협의필요') return '시간협의필요';
+  const m = s.match(/(오전|오후)\s*(\d{1,2}):00\s*~\s*(\d{1,2}):00/);
+  if(m) return `${m[1]} ${parseInt(m[2])}시~${parseInt(m[3])}시`;
+  return null;
+}
+
+function normalizeMethod(raw){
+  const s = String(raw ?? '').replace(/\s/g,'');
+  if(s.includes('대면')) return '대면상담(학교방문)';
+  if(s.includes('전화')) return '전화상담';
+  return '';
+}
+
+function normalizeGrade(raw){
+  const s = String(raw ?? '');
+  if(s.includes('1학년')) return '1학년';
+  if(s.includes('2학년')) return '2학년';
+  if(s.includes('3학년')) return '3학년';
+  return s.trim() ? '기타' : '';
+}
+
+function normalizeGender(raw){
+  const s = String(raw ?? '').trim();
+  if(s === '여') return '여학생';
+  if(s === '남') return '남학생';
+  return '';
+}
+
+document.getElementById('importFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('importStatus');
+  statusEl.style.display = 'block';
+  statusEl.textContent = '엑셀 파일을 읽는 중...';
+
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    const sheetName = wb.SheetNames.find(n => n.includes('상담신청')) || wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const sheetRows = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+
+    const targetRows = sheetRows.filter(row => String(row['학생 성명'] || '').trim());
+    if(targetRows.length === 0){
+      statusEl.textContent = `"${sheetName}" 시트에서 학생 성명이 있는 행을 찾지 못했습니다. 컬럼명을 확인해주세요.`;
+      e.target.value = '';
+      return;
+    }
+    if(!confirm(`"${sheetName}" 시트에서 ${targetRows.length}건을 찾았습니다. 불러올까요? (이미 등록된 것과 이름·날짜·시간이 같은 건은 건너뜁니다)`)){
+      e.target.value = '';
+      return;
+    }
+
+    let success = 0, duplicate = 0, needsReview = [];
+
+    for(const row of targetRows){
+      const studentName = String(row['학생 성명']).trim();
+      const dateStr = parseExcelDate(row['희망 날짜']);
+      const time = normalizeTime(row['희망 시간']);
+
+      if(!dateStr || !time){
+        needsReview.push(`${studentName} (${!dateStr ? '날짜' : ''}${!dateStr && !time ? '·' : ''}${!time ? '시간' : ''} 형식 확인 필요)`);
+        continue;
+      }
+
+      const isDuplicate = responses.some(r =>
+        r.studentName === studentName && r.date === dateStr && r.time === time
+      );
+      if(isDuplicate){ duplicate++; continue; }
+
+      const payload = {
+        studentName,
+        gender: normalizeGender(row['성별']),
+        grade: normalizeGrade(row['학년']),
+        schoolName: String(row['학교 이름'] || '').trim(),
+        schoolLocation: String(row['학교 소재지'] || '').trim(),
+        parentPhone: String(row['학부모 연락처'] || '').trim(),
+        visitorCount: String(row['방문인원수'] || '').trim(),
+        consultMethod: normalizeMethod(row['상담 방법']),
+        date: dateStr,
+        time,
+        privacyConsent: String(row['개인정보 수집 및 이용에 동의'] || '').trim(),
+        confirmed: String(row['상담 확정 여부'] || '').includes('확정'),
+        duplicateAllowed: String(row['동일 시간 중복 허용 여부'] || '').includes('허용'),
+        createdAt: serverTimestamp()
+      };
+
+      try{
+        await addDoc(collection(db, 'responses'), payload);
+        responses.push(payload); // 같은 파일 안에서의 중복도 바로 걸러지도록
+        success++;
+      }catch(err){
+        needsReview.push(`${studentName} (저장 실패)`);
+      }
+    }
+
+    let msg = `${success}건 가져오기 완료`;
+    if(duplicate > 0) msg += ` · ${duplicate}건은 이미 등록되어 건너뜀`;
+    if(needsReview.length > 0) msg += ` · 확인 필요 ${needsReview.length}건: ${needsReview.join(', ')}`;
+    statusEl.textContent = msg;
+  }catch(err){
+    statusEl.textContent = '엑셀 파일을 읽는 중 오류가 발생했습니다: ' + err.message;
+  }
+  e.target.value = '';
+});
 </script>
 </body>
 </html>
