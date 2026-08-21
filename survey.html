@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학교 방문 개별 상담 신청</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --bg:#FAFAF7;
+    --paper:#FFFFFF;
+    --ink:#22262B;
+    --ink-soft:#5B584F;
+    --line:#DAD6CB;
+    --green:#2F5233;
+    --green-soft:#3F7B4F;
+    --green-tint:#EAF1EA;
+    --red:#C1440E;
+    --red-tint:#FBEAE3;
+    --muted:#9C9890;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(47,82,51,0.045) 28px),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Pretendard', -apple-system, sans-serif;
+  }
+  .wrap{max-width:480px; margin:0 auto; padding:36px 20px 60px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--green-soft); margin:0 0 6px; text-align:center;
+  }
+  h1{
+    font-family:'Gowun Batang', serif;
+    font-size:24px; text-align:center; margin:0 0 6px; line-height:1.35;
+  }
+  .sub{color:var(--ink-soft); font-size:14px; text-align:center; margin:0 0 28px; line-height:1.6;}
+
+  .card{
+    background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+    padding:24px; margin-bottom:18px;
+  }
+  .section-label{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--green-soft); margin:0 0 14px; font-weight:600;
+  }
+  .field{margin-bottom:16px;}
+  .field:last-child{margin-bottom:0;}
+  label.field-label{
+    display:block; font-size:13px; font-weight:600; margin-bottom:8px; color:var(--ink);
+  }
+  input[type=text], input[type=tel]{
+    width:100%; font-family:'Pretendard'; font-size:15px;
+    padding:11px 12px; border:1px solid var(--line); border-radius:8px;
+    background:var(--bg); color:var(--ink);
+  }
+  select{
+    width:100%; font-family:'IBM Plex Mono', monospace; font-size:15px;
+    padding:11px 12px; border:1px solid var(--line); border-radius:8px;
+    background:var(--bg); color:var(--ink); appearance:none;
+    background-image:linear-gradient(45deg, transparent 50%, var(--ink-soft) 50%), linear-gradient(135deg, var(--ink-soft) 50%, transparent 50%);
+    background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 13px) calc(50% - 3px);
+    background-size:5px 5px; background-repeat:no-repeat;
+  }
+  input:focus, select:focus{outline:2px solid var(--green-soft); outline-offset:1px;}
+  .date-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .hint{font-size:12px; color:var(--muted); margin-top:6px;}
+  .empty{color:var(--muted); font-size:14px; text-align:center; padding:14px 0;}
+
+  .btn-submit{
+    width:100%; padding:14px; font-size:15px; font-weight:700;
+    border-radius:9px; border:1px solid var(--green); background:var(--green);
+    color:#fff; cursor:pointer;
+  }
+  .btn-submit:disabled{background:var(--muted); border-color:var(--muted); cursor:not-allowed;}
+  .btn-submit:not(:disabled):hover{background:var(--green-soft); border-color:var(--green-soft);}
+
+  .done-card{text-align:center; padding:40px 24px;}
+  .done-icon{
+    width:52px; height:52px; border-radius:50%; background:var(--green-tint); color:var(--green);
+    display:flex; align-items:center; justify-content:center; font-size:24px; margin:0 auto 16px;
+  }
+  .done-title{font-family:'Gowun Batang', serif; font-size:20px; margin:0 0 8px;}
+  .done-detail{color:var(--ink-soft); font-size:14px; line-height:1.8; margin:0 0 20px; text-align:left;}
+  .done-detail b{color:var(--ink);}
+  .chip-static{
+    display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:12px;
+    background:var(--green-tint); color:var(--green); border-radius:6px; padding:3px 8px;
+  }
+
+  #configNotice{
+    max-width:480px; margin:20px auto 0; padding:14px 18px;
+    background:var(--red-tint); border:1px solid #E9C4B0; border-radius:var(--radius);
+    font-size:13px; line-height:1.6; display:none;
+  }
+  #configNotice code{background:#fff; padding:1px 5px; border-radius:4px;}
+</style>
+</head>
+<body>
+
+<div id="configNotice"></div>
+
+<div class="wrap">
+  <p class="eyebrow">개별 상담 신청</p>
+  <h1 id="titleText">개별 상담 신청</h1>
+  <p class="sub">학생·학부모님 정보를 입력하고, 희망하는 상담 방법과 날짜·시간을 선택해주세요.</p>
+
+  <div id="formArea">
+    <div class="card">
+      <p class="section-label">신청자 정보</p>
+      <div class="field">
+        <label class="field-label">학생 성명</label>
+        <input type="text" id="studentNameInput" placeholder="이름을 입력하세요">
+      </div>
+      <div class="field date-row">
+        <div>
+          <label class="field-label">성별</label>
+          <select id="genderSelect">
+            <option value="">선택</option>
+            <option value="남학생">남학생</option>
+            <option value="여학생">여학생</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">학년</label>
+          <select id="gradeInput">
+            <option value="">선택</option>
+            <option value="1학년">1학년</option>
+            <option value="2학년">2학년</option>
+            <option value="3학년">3학년</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">학교 이름</label>
+        <input type="text" id="schoolNameInput" placeholder="재학 중인 학교명">
+      </div>
+      <div class="field">
+        <label class="field-label">학교 소재지</label>
+        <input type="text" id="schoolLocationInput" placeholder="예: 경상남도 창녕군">
+      </div>
+      <div class="field">
+        <label class="field-label">학부모님 연락처</label>
+        <input type="tel" id="parentPhoneInput" placeholder="010-0000-0000">
+      </div>
+      <div class="field date-row">
+        <div>
+          <label class="field-label">방문인원</label>
+          <select id="visitorCountInput">
+            <option value="">선택</option>
+            <option value="1명">1명</option>
+            <option value="2명">2명</option>
+            <option value="3명">3명</option>
+            <option value="4명">4명</option>
+            <option value="5명 이상">5명 이상</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">상담방법</label>
+          <select id="consultMethodSelect">
+            <option value="">선택</option>
+            <option value="대면상담(학교방문)">대면상담(학교방문)</option>
+            <option value="전화상담">전화상담</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">희망 상담 날짜·시간</p>
+      <p class="hint" style="margin-top:-6px; margin-bottom:16px;">전화상담 및 평일 상담의 경우 "시간협의필요"를 선택해주세요.</p>
+      <div class="field date-row">
+        <div>
+          <label class="field-label">월</label>
+          <select id="monthSelect"><option value="">선택</option></select>
+        </div>
+        <div>
+          <label class="field-label">일</label>
+          <select id="daySelect"><option value="">월을 먼저 선택</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">희망 시간</label>
+        <select id="timeSelect" disabled><option value="">날짜를 먼저 선택하세요</option></select>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-label">개인정보 수집 및 이용 동의</p>
+      <div class="field">
+        <label class="field-label">개인정보 수집 및 이용에 동의합니까? 미동의 시 상담 진행에 제한이 있을 수 있습니다.</label>
+        <select id="consentSelect">
+          <option value="">선택</option>
+          <option value="동의합니다">동의합니다</option>
+          <option value="미동의합니다">미동의합니다</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-submit" id="submitBtn" disabled>신청하기</button>
+  </div>
+
+  <div class="card done-card" id="doneArea" style="display:none;">
+    <div class="done-icon">✓</div>
+    <p class="done-title">신청이 접수되었습니다</p>
+    <p class="done-detail" id="doneDetail"></p>
+    <button class="btn-submit" id="resetBtn" style="background:transparent; color:var(--green); border:1px solid var(--green);">다시 신청하기</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, addDoc, doc, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ------------------------------------------------------------------
+// admin.html 과 "완전히 동일한" firebaseConfig 값을 넣어야 합니다.
+// ------------------------------------------------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyCN5n1YDtZSmTB5en3P3FXY_jAMBB-h_YA",
+  authDomain: "okya-admin.firebaseapp.com",
+  projectId: "okya-admin",
+  storageBucket: "okya-admin.firebasestorage.app",
+  messagingSenderId: "226340731611",
+  appId: "1:226340731611:web:f9621ec1462bd9d6e02afe"
+};
+
+const isConfigured = !firebaseConfig.apiKey.includes("YOUR_");
+if(!isConfigured){
+  const n = document.getElementById('configNotice');
+  n.style.display = 'block';
+  n.innerHTML = `<strong>설정이 필요합니다.</strong> 이 파일 하단의 <code>firebaseConfig</code> 값을 admin.html 과 동일하게 넣어주세요.`;
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ------------------------------------------------------------------
+// 희망 시간 고정 옵션 (전화상담·평일상담은 "시간협의필요"로 신청)
+// ------------------------------------------------------------------
+const NEGOTIATE_LABEL = '시간협의필요';
+const FIXED_TIME_OPTIONS = [
+  '오전 10시~11시','오전 11시~12시',
+  '오후 1시~2시','오후 2시~3시','오후 3시~4시','오후 4시~5시',
+  NEGOTIATE_LABEL
+];
+
+let responses = [];  // 기존 신청 내역 (중복 방지용)
+
+onSnapshot(doc(db, 'config', 'meta'), snap => {
+  const name = snap.exists() && snap.data().eventName ? snap.data().eventName : '개별 상담 신청';
+  document.getElementById('titleText').textContent = name;
+});
+
+onSnapshot(collection(db, 'responses'), snap => {
+  responses = snap.docs.map(d => d.data());
+  populateTimes();
+});
+
+const monthSelect = document.getElementById('monthSelect');
+const daySelect = document.getElementById('daySelect');
+const timeSelect = document.getElementById('timeSelect');
+const submitBtn = document.getElementById('submitBtn');
+
+const requiredInputs = [
+  'studentNameInput','genderSelect','gradeInput','schoolNameInput','schoolLocationInput',
+  'parentPhoneInput','visitorCountInput','consultMethodSelect','consentSelect'
+].map(id => document.getElementById(id));
+requiredInputs.forEach(el => el.addEventListener('input', updateSubmitState));
+requiredInputs.forEach(el => el.addEventListener('change', updateSubmitState));
+
+function pad(n){ return String(n).padStart(2,'0'); }
+
+// 오늘을 기준으로, 선택한 '월'이 이미 지난 달이면 내년으로 간주 (연 선택 없이도 자연스럽게 다음 해로 넘어가도록)
+function resolveYear(month){
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth() + 1;
+  return month < curMonth ? curYear + 1 : curYear;
+}
+
+function daysInMonth(year, month){
+  return new Date(year, month, 0).getDate();
+}
+
+function currentDateStr(){
+  const month = parseInt(monthSelect.value);
+  const day = parseInt(daySelect.value);
+  if(!month || !day) return null;
+  const year = resolveYear(month);
+  return `${year}-${pad(month)}-${pad(day)}`;
+}
+
+// ---------- 월 / 일 드롭다운 ----------
+(function populateMonths(){
+  monthSelect.innerHTML = '<option value="">선택</option>' +
+    Array.from({length:12}, (_,i) => i+1).map(m => `<option value="${m}">${m}월</option>`).join('');
+})();
+
+monthSelect.addEventListener('change', () => {
+  const month = parseInt(monthSelect.value);
+  if(!month){
+    daySelect.innerHTML = '<option value="">월을 먼저 선택</option>';
+    populateTimes();
+    return;
+  }
+  const year = resolveYear(month);
+  const n = daysInMonth(year, month);
+  daySelect.innerHTML = '<option value="">선택</option>' +
+    Array.from({length:n}, (_,i) => i+1).map(d => `<option value="${d}">${d}일</option>`).join('');
+  populateTimes();
+});
+
+daySelect.addEventListener('change', populateTimes);
+timeSelect.addEventListener('change', updateSubmitState);
+
+function populateTimes(){
+  const dateStr = currentDateStr();
+  if(!dateStr){
+    timeSelect.disabled = true;
+    timeSelect.innerHTML = '<option value="">날짜를 먼저 선택하세요</option>';
+    updateSubmitState();
+    return;
+  }
+
+  // 이미 신청된 시간(시간협의필요는 제외)은 목록에서 뺀다
+  const bookedTimes = new Set(
+    responses.filter(r => r.date === dateStr && r.time !== NEGOTIATE_LABEL).map(r => r.time)
+  );
+  const available = FIXED_TIME_OPTIONS.filter(t => t === NEGOTIATE_LABEL || !bookedTimes.has(t));
+
+  timeSelect.disabled = false;
+  timeSelect.innerHTML = '<option value="">선택</option>' +
+    available.map(t => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('');
+  updateSubmitState();
+}
+
+function updateSubmitState(){
+  const filled = requiredInputs.every(el => el.value.trim());
+  submitBtn.disabled = !(filled && currentDateStr() && timeSelect.value);
+}
+
+submitBtn.addEventListener('click', async () => {
+  const dateStr = currentDateStr();
+  const time = timeSelect.value;
+  if(!dateStr || !time) return;
+
+  const payload = {
+    studentName: document.getElementById('studentNameInput').value.trim(),
+    gender: document.getElementById('genderSelect').value,
+    grade: document.getElementById('gradeInput').value.trim(),
+    schoolName: document.getElementById('schoolNameInput').value.trim(),
+    schoolLocation: document.getElementById('schoolLocationInput').value.trim(),
+    parentPhone: document.getElementById('parentPhoneInput').value.trim(),
+    visitorCount: document.getElementById('visitorCountInput').value.trim(),
+    consultMethod: document.getElementById('consultMethodSelect').value,
+    privacyConsent: document.getElementById('consentSelect').value,
+    date: dateStr,
+    time,
+    createdAt: serverTimestamp()
+  };
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = '접수 중...';
+  try{
+    await addDoc(collection(db, 'responses'), payload);
+    showDone(payload);
+  }catch(e){
+    alert('신청 중 문제가 발생했습니다. 다시 시도해주세요.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = '신청하기';
+  }
+});
+
+function showDone(p){
+  document.getElementById('formArea').style.display = 'none';
+  document.getElementById('doneArea').style.display = 'block';
+  const [,m,d] = p.date.split('-');
+  document.getElementById('doneDetail').innerHTML = `
+    <b>${escapeHtml(p.studentName)}</b> 학생 (${escapeHtml(p.grade)})<br>
+    ${escapeHtml(p.schoolName)} · ${escapeHtml(p.consultMethod)}<br><br>
+    희망 일시: <b>${parseInt(m)}월 ${parseInt(d)}일</b> &nbsp;
+    <span class="chip-static">${escapeHtml(p.time)}</span>
+  `;
+}
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  document.getElementById('doneArea').style.display = 'none';
+  document.getElementById('formArea').style.display = 'block';
+  requiredInputs.forEach(el => el.value = '');
+  monthSelect.value = '';
+  daySelect.innerHTML = '<option value="">월을 먼저 선택</option>';
+  populateTimes();
+  submitBtn.textContent = '신청하기';
+});
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(s){
+  return String(s).replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
