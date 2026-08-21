@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>행사 참여 시간 관리</title>
+<title>학교 방문 개별 상담 관리</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css">
@@ -35,7 +35,7 @@
   }
   header{
     padding:32px 20px 20px;
-    max-width:860px;
+    max-width:1600px;
     margin:0 auto;
   }
   .eyebrow{
@@ -69,7 +69,7 @@
   .title-edit-btn:hover{border-color:var(--green-soft); color:var(--green-soft);}
   .sub{color:var(--ink-soft); font-size:14px; margin:0;}
   .hint{font-size:13px; color:var(--ink-soft); line-height:1.6;}
-  main{max-width:860px; margin:0 auto; padding:0 20px;}
+  main{max-width:1600px; margin:0 auto; padding:0 20px;}
   section.card{
     background:var(--paper);
     border:1px solid var(--line);
@@ -93,25 +93,6 @@
     padding:2px 7px;
     border-radius:5px;
   }
-  .add-row{
-    display:flex;
-    gap:10px;
-    flex-wrap:wrap;
-    align-items:flex-end;
-  }
-  .field{display:flex; flex-direction:column; gap:5px;}
-  .field label{font-size:12px; color:var(--ink-soft);}
-  input[type=date], input[type=time], input[type=text]{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:14px;
-    padding:9px 10px;
-    border:1px solid var(--line);
-    border-radius:7px;
-    background:var(--bg);
-    color:var(--ink);
-  }
-  input[type=text]{font-family:'Pretendard';}
-  input:focus{outline:2px solid var(--green-soft); outline-offset:1px;}
   .btn{
     font-family:'Pretendard';
     font-weight:600;
@@ -132,43 +113,10 @@
   .btn.danger{background:transparent; color:var(--red); border:1px solid var(--red-tint);}
   .btn.danger:hover{background:var(--red-tint);}
   .btn.small{padding:5px 10px; font-size:12px;}
-
-  .date-group{margin-top:18px;}
-  .date-group:first-child{margin-top:0;}
-  .date-heading{
-    font-family:'IBM Plex Mono', monospace;
-    font-size:13px;
-    color:var(--green);
-    border-bottom:1px solid var(--line);
-    padding-bottom:6px;
-    margin-bottom:10px;
-    display:flex;
-    justify-content:space-between;
-  }
-  table{width:100%; border-collapse:collapse;}
-  tr.slot-row td{
-    padding:9px 4px;
-    border-bottom:1px dashed var(--line);
-    font-size:14px;
-    vertical-align:middle;
-  }
-  tr.slot-row.closed{color:var(--muted);}
-  tr.slot-row.closed .time-val{text-decoration:line-through;}
-  .time-val{font-family:'IBM Plex Mono', monospace; font-weight:600; min-width:56px; display:inline-block;}
-  .badge{
-    font-size:11px;
-    padding:2px 8px;
-    border-radius:20px;
-    font-weight:600;
-  }
-  .badge.open{background:var(--green-tint); color:var(--green);}
-  .badge.closed{background:#EEECE6; color:var(--muted);}
-  .count{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft);}
-  .row-actions{display:flex; gap:6px; justify-content:flex-end;}
   .empty{color:var(--muted); font-size:14px; padding:10px 0;}
 
   .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-  #responsesTable{width:100%; min-width:760px; border-collapse:collapse; font-size:13px;}
+  #responsesTable{width:100%; min-width:1080px; border-collapse:collapse; font-size:13px;}
   #responsesTable th{
     text-align:left; font-family:'IBM Plex Mono', monospace; font-weight:600;
     font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em;
@@ -180,10 +128,32 @@
     background:var(--bg); border:1px solid var(--line); border-radius:5px;
     padding:1px 6px; margin:2px 4px 2px 0;
   }
-  .card-head-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;}
+  .card-head-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;}
+  .row-actions{display:flex; gap:6px; justify-content:flex-end;}
+  .filter-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
+  .filter-row input[type=text], .filter-row input[type=date]{
+    font-family:'Pretendard'; font-size:13px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink);
+  }
+  .filter-row input[type=text]{min-width:180px;}
+  .filter-row select{
+    font-family:'Pretendard'; font-size:13px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink);
+  }
+  .cell-input, .cell-select{
+    font-family:'Pretendard'; font-size:12px; padding:5px 6px;
+    border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink);
+    width:100%; min-width:80px;
+  }
+  .note-input{
+    font-family:'Pretendard'; font-size:12px; padding:5px 6px;
+    border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--ink);
+    width:100%; min-width:110px;
+  }
+  .note-input:focus, .cell-input:focus, .cell-select:focus{outline:2px solid var(--green-soft); outline-offset:1px;}
 
   #configNotice{
-    max-width:860px; margin:20px auto 0; padding:14px 18px;
+    max-width:1600px; margin:20px auto 0; padding:14px 18px;
     background:var(--red-tint); border:1px solid #E9C4B0; border-radius:var(--radius);
     font-size:13px; line-height:1.6; display:none;
   }
@@ -197,41 +167,13 @@
 <header>
   <p class="eyebrow">백데이터 · 참여자 관리</p>
   <h1 id="titleText">학교 방문 개별 상담 관리 <button class="title-edit-btn" id="editTitleBtn">이름 수정</button></h1>
-  <p class="sub">시간대를 등록하고, 마감 여부를 관리하고, 참여 신청 현황을 확인합니다.</p>
+  <p class="sub">참여 신청 현황을 확인하고 관리합니다.</p>
 </header>
 
 <main>
   <section class="card">
-    <h2><span class="tag">1</span> 시간대 추가</h2>
-    <p class="sub" style="margin:-8px 0 14px;">평일 시간대만 여기서 등록하세요. 주말·공휴일은 신청 페이지에서 10~12시/13~15시/15~17시로 자동 표시됩니다.</p>
-    <div class="add-row">
-      <div class="field">
-        <label for="inDate">날짜</label>
-        <input type="date" id="inDate">
-      </div>
-      <div class="field">
-        <label for="inTime">시간</label>
-        <input type="time" id="inTime">
-      </div>
-      <div class="field" style="flex:1; min-width:140px;">
-        <label for="inLabel">메모 (선택)</label>
-        <input type="text" id="inLabel" placeholder="예: 1부 / 강당">
-      </div>
-      <button class="btn" id="addSlotBtn">추가</button>
-    </div>
-  </section>
-
-  <section class="card">
     <div class="card-head-row">
-      <h2 style="margin:0;"><span class="tag">2</span> 등록된 시간대</h2>
-      <span class="sub" id="slotSummary"></span>
-    </div>
-    <div id="slotList"><p class="empty">아직 등록된 시간대가 없습니다.</p></div>
-  </section>
-
-  <section class="card">
-    <div class="card-head-row">
-      <h2 style="margin:0;"><span class="tag">3</span> 참여 신청 현황</h2>
+      <h2 style="margin:0;"><span class="tag">1</span> 참여 신청 현황</h2>
       <div style="display:flex; gap:8px;">
         <label class="btn ghost small" for="importFileInput" style="cursor:pointer; margin:0;">
           엑셀 불러오기
@@ -241,6 +183,18 @@
       </div>
     </div>
     <p class="hint" id="importStatus" style="display:none; margin-bottom:12px;"></p>
+    <div class="filter-row">
+      <input type="text" id="searchNameInput" placeholder="학생 이름으로 검색">
+      <input type="text" id="searchSchoolNameInput" placeholder="학교 이름으로 검색">
+      <input type="text" id="searchSchoolLocationInput" placeholder="학교 소재지로 검색">
+      <input type="date" id="searchDateInput" title="상담 날짜로 검색">
+      <select id="sortModeSelect">
+        <option value="recent">최근 등록순</option>
+        <option value="name">학생 이름순</option>
+        <option value="datetime">상담 일시순</option>
+      </select>
+      <button class="btn ghost small" id="clearFilterBtn">초기화</button>
+    </div>
     <div id="responseList"><p class="empty">아직 접수된 신청이 없습니다.</p></div>
   </section>
 </main>
@@ -277,8 +231,20 @@ if(!isConfigured){
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-let slots = [];
 let responses = [];
+let editingId = null;
+let filterName = '';
+let filterSchoolName = '';
+let filterSchoolLocation = '';
+let filterDate = '';
+let sortMode = 'recent';
+
+const GENDER_OPTIONS = ['남학생','여학생'];
+const GRADE_OPTIONS = ['1학년','2학년','3학년','기타'];
+const VISITOR_OPTIONS = ['1명','2명','3명','4명','5명 이상'];
+const METHOD_OPTIONS = ['대면상담(학교방문)','전화상담'];
+const TIME_OPTIONS = ['오전 10시~11시','오전 11시~12시','오후 1시~2시','오후 2시~3시','오후 3시~4시','오후 4시~5시','시간협의필요'];
+const TIME_ORDER = Object.fromEntries(TIME_OPTIONS.map((t,i) => [t,i]));
 
 // ---------- 행사명 ----------
 const titleText = document.getElementById('titleText');
@@ -298,133 +264,114 @@ editTitleBtn.addEventListener('click', async () => {
   }
 });
 
-// ---------- 시간대 추가 ----------
-document.getElementById('addSlotBtn').addEventListener('click', async () => {
-  const date = document.getElementById('inDate').value;
-  const time = document.getElementById('inTime').value;
-  const label = document.getElementById('inLabel').value.trim();
-  if(!date || !time){ alert('날짜와 시간을 모두 선택해주세요.'); return; }
-  await addDoc(collection(db, 'slots'), {
-    date, time, label, closed:false, createdAt: serverTimestamp()
-  });
-  document.getElementById('inLabel').value = '';
-});
-
 // ---------- 실시간 구독 ----------
-onSnapshot(collection(db, 'slots'), snap => {
-  slots = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-  renderSlots();
-  renderResponses();
-});
-
 onSnapshot(collection(db, 'responses'), snap => {
   responses = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-  renderSlots();
   renderResponses();
 });
 
-function countFor(date, time){
-  return responses.filter(r =>
-    r.date === date && (r.time === time || (Array.isArray(r.times) && r.times.includes(time)))
-  ).length;
+function selectHtml(field, current, opts){
+  return `<select class="cell-select" data-field="${field}">` +
+    opts.map(o => `<option value="${o}" ${o===current?'selected':''}>${o}</option>`).join('') +
+  `</select>`;
 }
 
-function renderSlots(){
-  const list = document.getElementById('slotList');
-  const summary = document.getElementById('slotSummary');
-  if(slots.length === 0){
-    list.innerHTML = '<p class="empty">아직 등록된 시간대가 없습니다.</p>';
-    summary.textContent = '';
-    return;
-  }
-  const openCount = slots.filter(s => !s.closed).length;
-  summary.textContent = `전체 ${slots.length} · 진행중 ${openCount} · 마감 ${slots.length - openCount}`;
-
-  const byDate = {};
-  slots.forEach(s => { (byDate[s.date] ||= []).push(s); });
-  const dates = Object.keys(byDate).sort();
-
-  list.innerHTML = dates.map(date => {
-    const rows = byDate[date].sort((a,b) => a.time.localeCompare(b.time));
+function rowHtml(r){
+  if(r.id === editingId){
     return `
-      <div class="date-group">
-        <div class="date-heading"><span>${formatDate(date)}</span><span>${rows.length}개 시간대</span></div>
-        <table>
-          <tbody>
-          ${rows.map(s => `
-            <tr class="slot-row ${s.closed ? 'closed':''}">
-              <td><span class="time-val">${s.time}</span></td>
-              <td>${s.label || ''}</td>
-              <td><span class="badge ${s.closed ? 'closed':'open'}">${s.closed ? '마감' : '진행중'}</span></td>
-              <td class="count">신청 ${countFor(s.date, s.time)}명</td>
-              <td>
-                <div class="row-actions">
-                  <button class="btn ghost small" data-toggle="${s.id}" data-closed="${s.closed}">${s.closed ? '재오픈':'마감'}</button>
-                  <button class="btn danger small" data-del="${s.id}">삭제</button>
-                </div>
-              </td>
-            </tr>
-          `).join('')}
-          </tbody>
-        </table>
-      </div>
+      <tr data-editrow="${r.id}">
+        <td><input class="cell-input" data-field="studentName" value="${escapeHtml(r.studentName||'')}"></td>
+        <td>${selectHtml('gender', r.gender||'', GENDER_OPTIONS)}</td>
+        <td>${selectHtml('grade', r.grade||'', GRADE_OPTIONS)}</td>
+        <td><input class="cell-input" data-field="schoolName" value="${escapeHtml(r.schoolName||'')}"></td>
+        <td><input class="cell-input" data-field="schoolLocation" value="${escapeHtml(r.schoolLocation||'')}"></td>
+        <td><input class="cell-input" data-field="parentPhone" value="${escapeHtml(r.parentPhone||'')}"></td>
+        <td>${selectHtml('visitorCount', r.visitorCount||'', VISITOR_OPTIONS)}</td>
+        <td>${selectHtml('consultMethod', r.consultMethod||'', METHOD_OPTIONS)}</td>
+        <td><input class="cell-input" type="date" data-field="date" value="${escapeHtml(r.date||'')}"></td>
+        <td>${selectHtml('time', r.time||'', TIME_OPTIONS)}</td>
+        <td><button class="btn ${r.confirmed ? '' : 'ghost'} small" data-confirm="${r.id}" data-val="${r.confirmed}">${r.confirmed ? '확정' : '미확정'}</button></td>
+        <td><button class="btn ${r.duplicateAllowed ? '' : 'ghost'} small" data-dup="${r.id}" data-val="${r.duplicateAllowed}">${r.duplicateAllowed ? '허용' : '제한'}</button></td>
+        <td><input class="note-input" data-field="note" value="${escapeHtml(r.note||'')}" placeholder="메모"></td>
+        <td>
+          <div class="row-actions">
+            <button class="btn small" data-save="${r.id}">저장</button>
+            <button class="btn ghost small" data-cancel="${r.id}">취소</button>
+          </div>
+        </td>
+      </tr>
     `;
-  }).join('');
-
-  list.querySelectorAll('[data-toggle]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-toggle');
-      const closed = btn.getAttribute('data-closed') === 'true';
-      await updateDoc(doc(db, 'slots', id), { closed: !closed });
-    });
-  });
-  list.querySelectorAll('[data-del]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if(confirm('이 시간대를 삭제할까요? 신청 기록은 남아있지만 시간대 목록에서 사라집니다.')){
-        await deleteDoc(doc(db, 'slots', btn.getAttribute('data-del')));
-      }
-    });
-  });
+  }
+  return `
+    <tr>
+      <td>${escapeHtml(r.studentName ?? r.name ?? '')}</td>
+      <td>${escapeHtml(r.gender || '')}</td>
+      <td>${escapeHtml(r.grade || '')}</td>
+      <td>${escapeHtml(r.schoolName || '')}</td>
+      <td>${escapeHtml(r.schoolLocation || '')}</td>
+      <td>${escapeHtml(r.parentPhone || '')}</td>
+      <td>${escapeHtml(r.visitorCount || '')}</td>
+      <td>${escapeHtml(r.consultMethod || '')}</td>
+      <td>${formatDate(r.date)}</td>
+      <td>${r.time ? `<span class="chip">${escapeHtml(r.time)}</span>` : (r.times||[]).map(t => `<span class="chip">${escapeHtml(t)}</span>`).join('')}</td>
+      <td><button class="btn ${r.confirmed ? '' : 'ghost'} small" data-confirm="${r.id}" data-val="${r.confirmed}">${r.confirmed ? '확정' : '미확정'}</button></td>
+      <td><button class="btn ${r.duplicateAllowed ? '' : 'ghost'} small" data-dup="${r.id}" data-val="${r.duplicateAllowed}">${r.duplicateAllowed ? '허용' : '제한'}</button></td>
+      <td><input type="text" class="note-input" data-note="${r.id}" value="${escapeHtml(r.note || '')}" placeholder="메모"></td>
+      <td>
+        <div class="row-actions">
+          <button class="btn ghost small" data-edit="${r.id}">수정</button>
+          <button class="btn danger small" data-delres="${r.id}">삭제</button>
+        </div>
+      </td>
+    </tr>
+  `;
 }
 
 function renderResponses(){
   const wrap = document.getElementById('responseList');
-  if(responses.length === 0){
-    wrap.innerHTML = '<p class="empty">아직 접수된 신청이 없습니다.</p>';
+
+  const filtered = responses.filter(r => {
+    if(filterName && !String(r.studentName||'').includes(filterName)) return false;
+    if(filterSchoolName && !String(r.schoolName||'').includes(filterSchoolName)) return false;
+    if(filterSchoolLocation && !String(r.schoolLocation||'').includes(filterSchoolLocation)) return false;
+    if(filterDate && r.date !== filterDate) return false;
+    return true;
+  });
+
+  if(filtered.length === 0){
+    wrap.innerHTML = responses.length === 0
+      ? '<p class="empty">아직 접수된 신청이 없습니다.</p>'
+      : '<p class="empty">조건에 맞는 신청이 없습니다.</p>';
     return;
   }
-  const sorted = [...responses].sort((a,b) => {
-    const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-    const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-    return tb - ta;
-  });
+
+  let sorted;
+  if(sortMode === 'name'){
+    sorted = [...filtered].sort((a,b) => String(a.studentName||'').localeCompare(String(b.studentName||''), 'ko'));
+  } else if(sortMode === 'datetime'){
+    sorted = [...filtered].sort((a,b) => {
+      const dcmp = String(a.date||'').localeCompare(String(b.date||''));
+      if(dcmp !== 0) return dcmp;
+      return (TIME_ORDER[a.time] ?? 99) - (TIME_ORDER[b.time] ?? 99);
+    });
+  } else {
+    sorted = [...filtered].sort((a,b) => {
+      const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return tb - ta;
+    });
+  }
+
   wrap.innerHTML = `
     <div class="table-scroll">
     <table id="responsesTable">
       <thead><tr>
         <th>학생 성명</th><th>성별</th><th>학년</th><th>학교 이름</th><th>학교 소재지</th>
         <th>학부모 연락처</th><th>방문인원</th><th>상담방법</th><th>희망 날짜</th><th>희망 시간</th>
-        <th>개인정보 동의</th><th>확정 여부</th><th>중복 허용</th><th></th>
+        <th>확정 여부</th><th>중복 허용</th><th>비고</th><th></th>
       </tr></thead>
       <tbody>
-        ${sorted.map(r => `
-          <tr>
-            <td>${escapeHtml(r.studentName ?? r.name ?? '')}</td>
-            <td>${escapeHtml(r.gender || '')}</td>
-            <td>${escapeHtml(r.grade || '')}</td>
-            <td>${escapeHtml(r.schoolName || '')}</td>
-            <td>${escapeHtml(r.schoolLocation || '')}</td>
-            <td>${escapeHtml(r.parentPhone || '')}</td>
-            <td>${escapeHtml(r.visitorCount || '')}</td>
-            <td>${escapeHtml(r.consultMethod || '')}</td>
-            <td>${formatDate(r.date)}</td>
-            <td>${r.time ? `<span class="chip">${escapeHtml(r.time)}</span>` : (r.times||[]).map(t => `<span class="chip">${escapeHtml(t)}</span>`).join('')}</td>
-            <td>${escapeHtml(r.privacyConsent || '')}</td>
-            <td><button class="btn ${r.confirmed ? '' : 'ghost'} small" data-confirm="${r.id}" data-val="${r.confirmed}">${r.confirmed ? '확정' : '미확정'}</button></td>
-            <td><button class="btn ${r.duplicateAllowed ? '' : 'ghost'} small" data-dup="${r.id}" data-val="${r.duplicateAllowed}">${r.duplicateAllowed ? '허용' : '제한'}</button></td>
-            <td><button class="btn danger small" data-delres="${r.id}">삭제</button></td>
-          </tr>
-        `).join('')}
+        ${sorted.map(rowHtml).join('')}
       </tbody>
     </table>
     </div>
@@ -448,13 +395,81 @@ function renderResponses(){
       await updateDoc(doc(db, 'responses', btn.getAttribute('data-dup')), { duplicateAllowed: !cur });
     });
   });
+  wrap.querySelectorAll('[data-note]').forEach(inp => {
+    inp.addEventListener('blur', async () => {
+      const id = inp.getAttribute('data-note');
+      const val = inp.value.trim();
+      const current = responses.find(r => r.id === id);
+      if(current && (current.note||'') === val) return;
+      await updateDoc(doc(db, 'responses', id), { note: val });
+    });
+  });
+  wrap.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editingId = btn.getAttribute('data-edit');
+      renderResponses();
+    });
+  });
+  wrap.querySelectorAll('[data-cancel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      editingId = null;
+      renderResponses();
+    });
+  });
+  wrap.querySelectorAll('[data-save]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-save');
+      const row = wrap.querySelector(`tr[data-editrow="${id}"]`);
+      const fields = {};
+      row.querySelectorAll('[data-field]').forEach(el => {
+        fields[el.getAttribute('data-field')] = el.value.trim();
+      });
+      await updateDoc(doc(db, 'responses', id), fields);
+      editingId = null;
+      renderResponses();
+    });
+  });
 }
+
+document.getElementById('searchNameInput').addEventListener('input', (e) => {
+  filterName = e.target.value.trim();
+  renderResponses();
+});
+document.getElementById('searchSchoolNameInput').addEventListener('input', (e) => {
+  filterSchoolName = e.target.value.trim();
+  renderResponses();
+});
+document.getElementById('searchSchoolLocationInput').addEventListener('input', (e) => {
+  filterSchoolLocation = e.target.value.trim();
+  renderResponses();
+});
+document.getElementById('searchDateInput').addEventListener('input', (e) => {
+  filterDate = e.target.value;
+  renderResponses();
+});
+document.getElementById('sortModeSelect').addEventListener('change', (e) => {
+  sortMode = e.target.value;
+  renderResponses();
+});
+document.getElementById('clearFilterBtn').addEventListener('click', () => {
+  filterName = '';
+  filterSchoolName = '';
+  filterSchoolLocation = '';
+  filterDate = '';
+  sortMode = 'recent';
+  document.getElementById('searchNameInput').value = '';
+  document.getElementById('searchSchoolNameInput').value = '';
+  document.getElementById('searchSchoolLocationInput').value = '';
+  document.getElementById('searchDateInput').value = '';
+  document.getElementById('sortModeSelect').value = 'recent';
+  renderResponses();
+});
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   if(responses.length === 0){ alert('내보낼 신청 기록이 없습니다.'); return; }
   const header = [
     '학생 성명','성별','학년','학교 이름','학교 소재지','학부모 연락처','방문인원','상담방법',
-    '희망 날짜','희망 시간','개인정보 동의','상담 확정 여부','동일 시간 중복 허용 여부'
+    '희망 날짜','희망 시간','상담 확정 여부','동일 시간 중복 허용 여부','비고'
   ];
   const rows = responses.map(r => [
     r.studentName ?? r.name ?? '',
@@ -467,9 +482,9 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     r.consultMethod || '',
     r.date || '',
     r.time || (r.times||[]).join(' / '),
-    r.privacyConsent || '',
     r.confirmed ? '확정' : '미확정',
-    r.duplicateAllowed ? '허용' : ''
+    r.duplicateAllowed ? '허용' : '',
+    r.note || ''
   ]);
   const csv = [header, ...rows].map(row =>
     row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')
