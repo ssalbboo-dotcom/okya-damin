@@ -116,13 +116,14 @@
   .empty{color:var(--muted); font-size:14px; padding:10px 0;}
 
   .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-  #responsesTable{width:100%; min-width:1080px; border-collapse:collapse; font-size:13px;}
+  #responsesTable{width:100%; min-width:1180px; border-collapse:collapse; font-size:13px;}
   #responsesTable th{
     text-align:left; font-family:'IBM Plex Mono', monospace; font-weight:600;
     font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em;
     border-bottom:1px solid var(--line); padding:6px 4px;
   }
   #responsesTable td{padding:8px 4px; border-bottom:1px dashed var(--line); vertical-align:top;}
+  #responsesTable tbody tr:nth-child(even){background:#F1EFE8;}
   .chip{
     display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:11px;
     background:var(--bg); border:1px solid var(--line); border-radius:5px;
@@ -136,6 +137,7 @@
     border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink);
   }
   .filter-row input[type=text]{min-width:180px;}
+  .date-range{display:flex; align-items:center; gap:6px; color:var(--ink-soft); font-size:13px;}
   .filter-row select{
     font-family:'Pretendard'; font-size:13px; padding:8px 10px;
     border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink);
@@ -187,12 +189,17 @@
       <input type="text" id="searchNameInput" placeholder="학생 이름으로 검색">
       <input type="text" id="searchSchoolNameInput" placeholder="학교 이름으로 검색">
       <input type="text" id="searchSchoolLocationInput" placeholder="학교 소재지로 검색">
-      <input type="date" id="searchDateInput" title="상담 날짜로 검색">
+      <div class="date-range">
+        <input type="date" id="searchDateStartInput" title="상담 날짜 시작">
+        <span>~</span>
+        <input type="date" id="searchDateEndInput" title="상담 날짜 끝">
+      </div>
       <select id="sortModeSelect">
         <option value="recent">최근 등록순</option>
         <option value="name">학생 이름순</option>
         <option value="datetime">상담 일시순</option>
       </select>
+      <button class="btn ghost small" id="sortDirBtn" title="정렬 순서 뒤집기">↓ 정순</button>
       <button class="btn ghost small" id="clearFilterBtn">초기화</button>
     </div>
     <div id="responseList"><p class="empty">아직 접수된 신청이 없습니다.</p></div>
@@ -236,8 +243,10 @@ let editingId = null;
 let filterName = '';
 let filterSchoolName = '';
 let filterSchoolLocation = '';
-let filterDate = '';
+let filterDateStart = '';
+let filterDateEnd = '';
 let sortMode = 'recent';
+let sortReverse = false;
 
 const GENDER_OPTIONS = ['남학생','여학생'];
 const GRADE_OPTIONS = ['1학년','2학년','3학년','기타'];
@@ -280,6 +289,7 @@ function rowHtml(r){
   if(r.id === editingId){
     return `
       <tr data-editrow="${r.id}">
+        <td>${formatDateTime(r.createdAt)}</td>
         <td><input class="cell-input" data-field="studentName" value="${escapeHtml(r.studentName||'')}"></td>
         <td>${selectHtml('gender', r.gender||'', GENDER_OPTIONS)}</td>
         <td>${selectHtml('grade', r.grade||'', GRADE_OPTIONS)}</td>
@@ -304,6 +314,7 @@ function rowHtml(r){
   }
   return `
     <tr>
+      <td>${formatDateTime(r.createdAt)}</td>
       <td>${escapeHtml(r.studentName ?? r.name ?? '')}</td>
       <td>${escapeHtml(r.gender || '')}</td>
       <td>${escapeHtml(r.grade || '')}</td>
@@ -334,7 +345,8 @@ function renderResponses(){
     if(filterName && !String(r.studentName||'').includes(filterName)) return false;
     if(filterSchoolName && !String(r.schoolName||'').includes(filterSchoolName)) return false;
     if(filterSchoolLocation && !String(r.schoolLocation||'').includes(filterSchoolLocation)) return false;
-    if(filterDate && r.date !== filterDate) return false;
+    if(filterDateStart && r.date < filterDateStart) return false;
+    if(filterDateEnd && r.date > filterDateEnd) return false;
     return true;
   });
 
@@ -361,12 +373,13 @@ function renderResponses(){
       return tb - ta;
     });
   }
+  if(sortReverse) sorted.reverse();
 
   wrap.innerHTML = `
     <div class="table-scroll">
     <table id="responsesTable">
       <thead><tr>
-        <th>학생 성명</th><th>성별</th><th>학년</th><th>학교 이름</th><th>학교 소재지</th>
+        <th>접수일자</th><th>학생 성명</th><th>성별</th><th>학년</th><th>학교 이름</th><th>학교 소재지</th>
         <th>학부모 연락처</th><th>방문인원</th><th>상담방법</th><th>희망 날짜</th><th>희망 시간</th>
         <th>확정 여부</th><th>중복 허용</th><th>비고</th><th></th>
       </tr></thead>
@@ -443,25 +456,38 @@ document.getElementById('searchSchoolLocationInput').addEventListener('input', (
   filterSchoolLocation = e.target.value.trim();
   renderResponses();
 });
-document.getElementById('searchDateInput').addEventListener('input', (e) => {
-  filterDate = e.target.value;
+document.getElementById('searchDateStartInput').addEventListener('input', (e) => {
+  filterDateStart = e.target.value;
+  renderResponses();
+});
+document.getElementById('searchDateEndInput').addEventListener('input', (e) => {
+  filterDateEnd = e.target.value;
   renderResponses();
 });
 document.getElementById('sortModeSelect').addEventListener('change', (e) => {
   sortMode = e.target.value;
   renderResponses();
 });
+document.getElementById('sortDirBtn').addEventListener('click', () => {
+  sortReverse = !sortReverse;
+  document.getElementById('sortDirBtn').textContent = sortReverse ? '↑ 역순' : '↓ 정순';
+  renderResponses();
+});
 document.getElementById('clearFilterBtn').addEventListener('click', () => {
   filterName = '';
   filterSchoolName = '';
   filterSchoolLocation = '';
-  filterDate = '';
+  filterDateStart = '';
+  filterDateEnd = '';
   sortMode = 'recent';
+  sortReverse = false;
   document.getElementById('searchNameInput').value = '';
   document.getElementById('searchSchoolNameInput').value = '';
   document.getElementById('searchSchoolLocationInput').value = '';
-  document.getElementById('searchDateInput').value = '';
+  document.getElementById('searchDateStartInput').value = '';
+  document.getElementById('searchDateEndInput').value = '';
   document.getElementById('sortModeSelect').value = 'recent';
+  document.getElementById('sortDirBtn').textContent = '↓ 정순';
   renderResponses();
 });
 
@@ -501,6 +527,13 @@ function formatDate(dateStr){
   if(!dateStr) return '';
   const [y,m,d] = dateStr.split('-');
   return `${parseInt(m)}월 ${parseInt(d)}일`;
+}
+function formatDateTime(ts){
+  if(!ts?.toDate) return '';
+  const d = ts.toDate();
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  return `${d.getMonth()+1}월 ${d.getDate()}일 ${hh}:${mm}`;
 }
 function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
