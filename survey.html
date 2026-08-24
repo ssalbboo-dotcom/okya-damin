@@ -279,6 +279,24 @@ const requiredInputs = [
 requiredInputs.forEach(el => el.addEventListener('input', updateSubmitState));
 requiredInputs.forEach(el => el.addEventListener('change', updateSubmitState));
 
+// 학부모님 연락처 - 입력하는 대로 자동으로 하이픈(-) 삽입
+function formatPhoneNumber(value){
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if(digits.startsWith('02')){
+    if(digits.length <= 2) return digits;
+    if(digits.length <= 5) return `${digits.slice(0,2)}-${digits.slice(2)}`;
+    if(digits.length <= 9) return `${digits.slice(0,2)}-${digits.slice(2,5)}-${digits.slice(5)}`;
+    return `${digits.slice(0,2)}-${digits.slice(2,6)}-${digits.slice(6,10)}`;
+  }
+  if(digits.length <= 3) return digits;
+  if(digits.length <= 7) return `${digits.slice(0,3)}-${digits.slice(3)}`;
+  if(digits.length <= 10) return `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
+  return `${digits.slice(0,3)}-${digits.slice(3,7)}-${digits.slice(7,11)}`;
+}
+document.getElementById('parentPhoneInput').addEventListener('input', (e) => {
+  e.target.value = formatPhoneNumber(e.target.value);
+});
+
 function pad(n){ return String(n).padStart(2,'0'); }
 
 // 오늘을 기준으로, 선택한 '월'이 이미 지난 달이면 내년으로 간주 (연 선택 없이도 자연스럽게 다음 해로 넘어가도록)
@@ -301,10 +319,10 @@ function currentDateStr(){
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
-// ---------- 월 / 일 드롭다운 ----------
+// ---------- 월 / 일 드롭다운 (8월~12월만 노출) ----------
 (function populateMonths(){
   monthSelect.innerHTML = '<option value="">선택</option>' +
-    Array.from({length:12}, (_,i) => i+1).map(m => `<option value="${m}">${m}월</option>`).join('');
+    [8,9,10,11,12].map(m => `<option value="${m}">${m}월</option>`).join('');
 })();
 
 monthSelect.addEventListener('change', () => {

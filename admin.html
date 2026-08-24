@@ -129,6 +129,9 @@
     background:var(--bg); border:1px solid var(--line); border-radius:5px;
     padding:1px 6px; margin:2px 4px 2px 0;
   }
+  .badge{font-size:11px; padding:2px 8px; border-radius:20px; font-weight:600;}
+  .badge.open{background:var(--green-tint); color:var(--green);}
+  .badge.closed{background:#EEECE6; color:var(--muted);}
   .card-head-row{display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;}
   .row-actions{display:flex; gap:6px; justify-content:flex-end;}
   .filter-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;}
@@ -153,6 +156,50 @@
     width:100%; min-width:110px;
   }
   .note-input:focus, .cell-input:focus, .cell-select:focus{outline:2px solid var(--green-soft); outline-offset:1px;}
+
+  .view-tabs{display:flex; gap:6px; margin-bottom:18px; border-bottom:1px solid var(--line);}
+  .view-tab{
+    font-family:'Pretendard'; font-weight:600; font-size:13px;
+    padding:9px 4px; margin-bottom:-1px;
+    background:none; border:none; border-bottom:2px solid transparent;
+    color:var(--ink-soft); cursor:pointer;
+  }
+  .view-tab.active{color:var(--green); border-bottom-color:var(--green);}
+  .view-tab:hover{color:var(--green-soft);}
+
+  .cal-nav{display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:14px;}
+  .cal-month-label{font-family:'Gowun Batang', serif; font-size:18px; min-width:110px; text-align:center;}
+  .cal-weekdays{
+    display:grid; grid-template-columns:repeat(7,1fr);
+    font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--ink-soft);
+    text-align:center; padding:0 0 6px;
+  }
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:8px; overflow:hidden;}
+  .cal-cell{background:var(--paper); min-height:96px; padding:6px; display:flex; flex-direction:column; gap:3px; cursor:pointer;}
+  .cal-cell:hover{background:var(--green-tint);}
+  .cal-cell.empty{background:var(--bg); cursor:default;}
+  .cal-cell.empty:hover{background:var(--bg);}
+  .cal-cell.selected{outline:2px solid var(--green); outline-offset:-2px; background:var(--green-tint);}
+  .cal-cell.today .cal-daynum{color:#fff; background:var(--green); border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;}
+  .cal-daynum{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft); font-weight:600;}
+  .cal-entry{
+    font-size:11px; background:var(--green-tint); color:var(--green); border-radius:4px;
+    padding:2px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .cal-cell.selected .cal-entry{background:#fff;}
+  .cal-more{font-size:10px; color:var(--muted);}
+
+  .cal-day-detail{margin-top:18px; padding-top:18px; border-top:1px dashed var(--line);}
+  .cal-detail-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;}
+  .cal-detail-head h3{font-family:'Gowun Batang', serif; font-size:17px; margin:0; font-weight:400;}
+  .cal-detail-row{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    padding:12px 6px; border-bottom:1px dashed var(--line); font-size:13px;
+  }
+  .cal-detail-row:last-child{border-bottom:none;}
+  .cal-detail-main{flex:1; min-width:220px;}
+  .cal-detail-name{font-weight:600;}
+  .cal-detail-sub{color:var(--ink-soft); font-size:12px; margin-top:2px;}
 
   #configNotice{
     max-width:1600px; margin:20px auto 0; padding:14px 18px;
@@ -185,24 +232,51 @@
       </div>
     </div>
     <p class="hint" id="importStatus" style="display:none; margin-bottom:12px;"></p>
-    <div class="filter-row">
-      <input type="text" id="searchNameInput" placeholder="학생 이름으로 검색">
-      <input type="text" id="searchSchoolNameInput" placeholder="학교 이름으로 검색">
-      <input type="text" id="searchSchoolLocationInput" placeholder="학교 소재지로 검색">
-      <div class="date-range">
-        <input type="date" id="searchDateStartInput" title="상담 날짜 시작">
-        <span>~</span>
-        <input type="date" id="searchDateEndInput" title="상담 날짜 끝">
-      </div>
-      <select id="sortModeSelect">
-        <option value="recent">최근 등록순</option>
-        <option value="name">학생 이름순</option>
-        <option value="datetime">상담 일시순</option>
-      </select>
-      <button class="btn ghost small" id="sortDirBtn" title="정렬 순서 뒤집기">↓ 정순</button>
-      <button class="btn ghost small" id="clearFilterBtn">초기화</button>
+
+    <div class="view-tabs">
+      <button class="view-tab active" data-view="list">목록 보기</button>
+      <button class="view-tab" data-view="calendar">캘린더 보기</button>
     </div>
-    <div id="responseList"><p class="empty">아직 접수된 신청이 없습니다.</p></div>
+
+    <div id="listView">
+      <div class="filter-row">
+        <input type="text" id="searchNameInput" placeholder="학생 이름으로 검색">
+        <input type="text" id="searchSchoolNameInput" placeholder="학교 이름으로 검색">
+        <input type="text" id="searchSchoolLocationInput" placeholder="학교 소재지로 검색">
+        <div class="date-range">
+          <input type="date" id="searchDateStartInput" title="상담 날짜 시작">
+          <span>~</span>
+          <input type="date" id="searchDateEndInput" title="상담 날짜 끝">
+        </div>
+        <select id="sortModeSelect">
+          <option value="recent">최근 등록순</option>
+          <option value="name">학생 이름순</option>
+          <option value="datetime">상담 일시순</option>
+        </select>
+        <button class="btn ghost small" id="sortDirBtn" title="정렬 순서 뒤집기">↓ 정순</button>
+        <button class="btn ghost small" id="clearFilterBtn">초기화</button>
+      </div>
+      <div id="responseList"><p class="empty">아직 접수된 신청이 없습니다.</p></div>
+    </div>
+
+    <div id="calendarView" style="display:none;">
+      <div class="cal-nav">
+        <button class="btn ghost small" id="calPrevBtn">‹ 이전 달</button>
+        <span id="calMonthLabel" class="cal-month-label"></span>
+        <button class="btn ghost small" id="calNextBtn">다음 달 ›</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+      </div>
+      <div id="calGrid" class="cal-grid"></div>
+      <div id="calDayDetail" class="cal-day-detail" style="display:none;">
+        <div class="cal-detail-head">
+          <h3 id="calDetailTitle"></h3>
+          <button class="btn ghost small" id="calDetailToListBtn">목록에서 보기</button>
+        </div>
+        <div id="calDetailList"></div>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -277,6 +351,7 @@ editTitleBtn.addEventListener('click', async () => {
 onSnapshot(collection(db, 'responses'), snap => {
   responses = snap.docs.map(d => ({ id:d.id, ...d.data() }));
   renderResponses();
+  renderCalendar();
 });
 
 function selectHtml(field, current, opts){
@@ -488,6 +563,139 @@ document.getElementById('clearFilterBtn').addEventListener('click', () => {
   document.getElementById('searchDateEndInput').value = '';
   document.getElementById('sortModeSelect').value = 'recent';
   document.getElementById('sortDirBtn').textContent = '↓ 정순';
+  renderResponses();
+});
+
+// ------------------------------------------------------------------
+// 목록 보기 / 캘린더 보기 탭
+// ------------------------------------------------------------------
+const todayObj = new Date();
+let calYear = todayObj.getFullYear();
+let calMonth = todayObj.getMonth() + 1; // 1~12
+let calSelectedDate = null;
+
+document.querySelectorAll('.view-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.view-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const view = btn.getAttribute('data-view');
+    document.getElementById('listView').style.display = view === 'list' ? '' : 'none';
+    document.getElementById('calendarView').style.display = view === 'calendar' ? '' : 'none';
+    if(view === 'calendar') renderCalendar();
+  });
+});
+
+document.getElementById('calPrevBtn').addEventListener('click', () => {
+  calMonth--;
+  if(calMonth < 1){ calMonth = 12; calYear--; }
+  calSelectedDate = null;
+  renderCalendar();
+});
+document.getElementById('calNextBtn').addEventListener('click', () => {
+  calMonth++;
+  if(calMonth > 12){ calMonth = 1; calYear++; }
+  calSelectedDate = null;
+  renderCalendar();
+});
+
+function renderCalendar(){
+  document.getElementById('calMonthLabel').textContent = `${calYear}년 ${calMonth}월`;
+
+  const firstDow = new Date(calYear, calMonth-1, 1).getDay(); // 0=일
+  const daysInMonth = new Date(calYear, calMonth, 0).getDate();
+  const todayStr = `${todayObj.getFullYear()}-${pad2(todayObj.getMonth()+1)}-${pad2(todayObj.getDate())}`;
+
+  const byDate = {};
+  responses.forEach(r => {
+    if(!r.date) return;
+    (byDate[r.date] ||= []).push(r);
+  });
+
+  let cells = '';
+  for(let i=0; i<firstDow; i++){
+    cells += `<div class="cal-cell empty"></div>`;
+  }
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = `${calYear}-${pad2(calMonth)}-${pad2(d)}`;
+    const entries = (byDate[dateStr] || []).sort((a,b) => (TIME_ORDER[a.time] ?? 99) - (TIME_ORDER[b.time] ?? 99));
+    const isToday = dateStr === todayStr;
+    const isSelected = dateStr === calSelectedDate;
+    const shown = entries.slice(0, 3);
+    const extra = entries.length - shown.length;
+    cells += `
+      <div class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-caldate="${dateStr}">
+        <span class="cal-daynum">${d}</span>
+        ${shown.map(r => `<span class="cal-entry">${escapeHtml(r.studentName||'')} · ${escapeHtml(r.time||'')}</span>`).join('')}
+        ${extra > 0 ? `<span class="cal-more">+${extra}건 더</span>` : ''}
+      </div>
+    `;
+  }
+  document.getElementById('calGrid').innerHTML = cells;
+
+  document.querySelectorAll('.cal-cell[data-caldate]').forEach(cell => {
+    cell.addEventListener('click', () => {
+      calSelectedDate = cell.getAttribute('data-caldate');
+      renderCalendar();
+      renderCalDayDetail(calSelectedDate);
+    });
+  });
+
+  if(calSelectedDate){
+    renderCalDayDetail(calSelectedDate);
+  } else {
+    document.getElementById('calDayDetail').style.display = 'none';
+  }
+}
+
+function renderCalDayDetail(dateStr){
+  const panel = document.getElementById('calDayDetail');
+  const entries = responses
+    .filter(r => r.date === dateStr)
+    .sort((a,b) => (TIME_ORDER[a.time] ?? 99) - (TIME_ORDER[b.time] ?? 99));
+
+  panel.style.display = 'block';
+  document.getElementById('calDetailTitle').textContent = `${formatDate(dateStr)} 신청 내역 (${entries.length}건)`;
+
+  const listEl = document.getElementById('calDetailList');
+  if(entries.length === 0){
+    listEl.innerHTML = '<p class="empty">이 날짜에는 신청이 없습니다.</p>';
+    return;
+  }
+  listEl.innerHTML = entries.map(r => `
+    <div class="cal-detail-row">
+      <span class="chip">${escapeHtml(r.time || '')}</span>
+      <div class="cal-detail-main">
+        <div class="cal-detail-name">${escapeHtml(r.studentName || '')} <span style="font-weight:400; color:var(--ink-soft);">(${escapeHtml(r.grade||'')} · ${escapeHtml(r.gender||'')})</span></div>
+        <div class="cal-detail-sub">${escapeHtml(r.schoolName||'')} ${r.schoolLocation ? '· '+escapeHtml(r.schoolLocation) : ''} · ${escapeHtml(r.parentPhone||'')} · ${escapeHtml(r.consultMethod||'')}</div>
+        ${r.note ? `<div class="cal-detail-sub">비고: ${escapeHtml(r.note)}</div>` : ''}
+      </div>
+      <span class="badge ${r.confirmed ? 'open' : 'closed'}">${r.confirmed ? '확정' : '미확정'}</span>
+      <button class="btn ghost small" data-caledit="${r.id}">수정</button>
+    </div>
+  `).join('');
+
+  listEl.querySelectorAll('[data-caledit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-caledit');
+      document.querySelector('.view-tab[data-view="list"]').click();
+      filterDateStart = dateStr;
+      filterDateEnd = dateStr;
+      document.getElementById('searchDateStartInput').value = dateStr;
+      document.getElementById('searchDateEndInput').value = dateStr;
+      editingId = id;
+      renderResponses();
+    });
+  });
+}
+
+document.getElementById('calDetailToListBtn').addEventListener('click', () => {
+  const dateStr = calSelectedDate;
+  if(!dateStr) return;
+  document.querySelector('.view-tab[data-view="list"]').click();
+  filterDateStart = dateStr;
+  filterDateEnd = dateStr;
+  document.getElementById('searchDateStartInput').value = dateStr;
+  document.getElementById('searchDateEndInput').value = dateStr;
   renderResponses();
 });
 
