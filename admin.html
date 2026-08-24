@@ -660,40 +660,28 @@ function renderResponses(){
 }
 
 // 신청 건 하나를 상담일지관리로 보내기 (없으면 1차 상담 기록 생성, 있으면 바로 열기)
-async function sendToCounselingLog(responseId){
+function sendToCounselingLog(responseId){
   const r = responses.find(x => x.id === responseId);
   if(!r) return;
   const name = (r.studentName ?? r.name ?? '').trim();
   if(!name){ alert('학생 이름이 없어 상담일지로 보낼 수 없습니다.'); return; }
 
-  const already = logs.some(l => l.name === name && l.date === r.date);
-  if(!already){
-    const method = r.consultMethod || '';
-    const payload = {
-      consultType: method.includes('전화') ? '전화' : (method.includes('대면') ? '방문' : ''),
-      date: r.date || '',
-      name,
-      gender: (r.gender || '').replace('학생',''),
-      grade: (r.grade || '').replace('학년',''),
-      region: r.schoolLocation || '',
-      middleSchool: r.schoolName || '',
-      gradeRank: '',
-      studentPhone: '',
-      guardianPhone: r.parentPhone || '',
-      admissionWill: '',
-      visitor: '',
-      counselor: '',
-      summary: '',
-      createdAt: serverTimestamp()
-    };
-    try{
-      await addDoc(collection(db, 'counselingLogs'), payload);
-      logs.push(payload);
-    }catch(err){
-      alert('상담일지 생성 중 문제가 발생했습니다: ' + err.message);
-      return;
-    }
-  }
+  const method = r.consultMethod || '';
+  logAddSeed = {
+    consultType: method.includes('전화') ? '전화' : (method.includes('대면') ? '방문' : ''),
+    date: r.date || '',
+    gender: (r.gender || '').replace('학생',''),
+    grade: (r.grade || '').replace('학년',''),
+    region: r.schoolLocation || '',
+    middleSchool: r.schoolName || '',
+    gradeRank: '',
+    studentPhone: '',
+    guardianPhone: r.parentPhone || '',
+    admissionWill: '',
+    visitor: ''
+  };
+  logAddSeedName = name;
+
   document.querySelector('.view-tab[data-view="log"]').click();
   openLogCard(name);
 }
@@ -987,6 +975,8 @@ function renderLogs(){
 // ------------------------------------------------------------------
 let openLogName = null;
 let logModalEditingId = null;
+let logAddSeed = null;
+let logAddSeedName = null;
 
 function openLogCard(name){
   openLogName = name;
@@ -1117,9 +1107,11 @@ function renderLogCardModal(){
     });
   });
 
-  // 추가 폼: 최근 기록 값으로 기본 채움
+  // 추가 폼: 신규 학생이면 상담신청목록에서 넘어온 정보(seed)로, 아니면 최근 기록 값으로 기본 채움
   const addGrid = document.getElementById('logAddGrid');
-  addGrid.innerHTML = logFormGridHtml({ ...latest, date:'' });
+  const useSeed = entries.length === 0 && logAddSeed && logAddSeedName === openLogName;
+  const base = useSeed ? logAddSeed : latest;
+  addGrid.innerHTML = logFormGridHtml({ ...base, date: useSeed ? (base.date||'') : '' });
   document.getElementById('logNewContent').value = '';
   document.getElementById('logNextSeqLabel').textContent = `${entries.length+1}차 상담 등록`;
 }
@@ -1136,6 +1128,7 @@ document.getElementById('logAddBtn').addEventListener('click', async () => {
   if(!fields.date){ alert('상담 날짜를 선택해주세요.'); return; }
   fields.createdAt = serverTimestamp();
   await addDoc(collection(db, 'counselingLogs'), fields);
+  if(logAddSeedName === openLogName){ logAddSeed = null; logAddSeedName = null; }
 });
 
 document.getElementById('logAddNewBtn').addEventListener('click', () => {
