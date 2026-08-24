@@ -113,17 +113,88 @@
   .btn.danger{background:transparent; color:var(--red); border:1px solid var(--red-tint);}
   .btn.danger:hover{background:var(--red-tint);}
   .btn.small{padding:5px 10px; font-size:12px;}
+  .btn-highlight{background:var(--red); border-color:var(--red); color:#fff;}
+  .btn-highlight:hover{background:#a3390d; border-color:#a3390d;}
   .empty{color:var(--muted); font-size:14px; padding:10px 0;}
 
   .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
-  #responsesTable{width:100%; min-width:1180px; border-collapse:collapse; font-size:13px;}
-  #responsesTable th{
+  .data-table{width:100%; border-collapse:collapse; font-size:13px;}
+  #responsesTable{min-width:1180px;}
+  #logTable{min-width:900px;}
+  .data-table th{
     text-align:left; font-family:'IBM Plex Mono', monospace; font-weight:600;
     font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em;
-    border-bottom:1px solid var(--line); padding:6px 4px;
+    background:#EFEBE0; border:1px solid var(--line); padding:7px 6px;
   }
-  #responsesTable td{padding:8px 4px; border-bottom:1px dashed var(--line); vertical-align:top;}
-  #responsesTable tbody tr:nth-child(even){background:#F1EFE8;}
+  .data-table td{padding:8px 6px; border-bottom:1px dashed var(--line); border-right:1px solid var(--line); vertical-align:top;}
+  .data-table td:last-child{border-right:none;}
+  .data-table tbody tr:nth-child(even){background:#F1EFE8;}
+
+  .name-link{font-weight:700; color:var(--green); cursor:pointer; text-underline-offset:3px;}
+  .name-link:hover{color:var(--green-soft); text-decoration:underline;}
+  .log-count-badge{
+    display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:10px; font-weight:700;
+    background:var(--green); color:#fff; border-radius:9px; padding:1px 7px; margin-left:2px;
+  }
+  .log-count-badge.zero{background:#C3C9D1;}
+
+  /* 상담 기록 모달 */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(34,38,43,0.55);
+    z-index:100; align-items:flex-start; justify-content:center; padding:32px 16px; overflow-y:auto;
+  }
+  .modal-overlay.show{display:flex;}
+  .card-modal{
+    background:var(--paper); border-radius:14px; width:100%; max-width:560px;
+    box-shadow:0 20px 60px rgba(20,20,15,0.3); display:flex; flex-direction:column;
+    max-height:calc(100vh - 64px);
+  }
+  .card-header{
+    background:var(--green); color:#fff; padding:18px 22px; border-radius:14px 14px 0 0;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  }
+  .card-header h3{font-family:'Gowun Batang', serif; font-size:19px; margin:0; font-weight:400;}
+  .card-sub{font-size:12px; color:#E4EDE4; margin:6px 0 0;}
+  .card-close{
+    background:rgba(255,255,255,0.15); border:none; color:#fff; width:28px; height:28px;
+    border-radius:8px; font-size:14px; cursor:pointer; flex-shrink:0;
+  }
+  .card-close:hover{background:rgba(255,255,255,0.28);}
+  .card-body{padding:18px 22px; overflow-y:auto;}
+  .section-title{
+    font-size:13px; font-weight:700; color:var(--ink); margin:0 0 10px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .section-title .log-count{font-size:12px; font-weight:600; color:var(--ink-soft);}
+  .log-list{display:flex; flex-direction:column; gap:10px; margin-bottom:14px;}
+  .log-entry{border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--paper);}
+  .log-entry-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;}
+  .log-seq{font-size:11px; font-weight:700; color:#fff; background:var(--green); padding:2px 8px; border-radius:10px;}
+  .log-entry-actions{display:flex; gap:4px;}
+  .log-entry-actions button{background:none; border:none; padding:2px 6px; font-size:12px; color:var(--ink-soft); border-radius:5px; cursor:pointer;}
+  .log-entry-actions button:hover{background:#EEECE6; color:var(--green);}
+  .log-content{font-size:13px; color:var(--ink); white-space:pre-wrap; line-height:1.6;}
+  .log-content-edit{
+    width:100%; font-family:'Pretendard'; font-size:13px; border:1px solid var(--green-soft);
+    border-radius:8px; padding:7px 9px; resize:vertical; min-height:60px;
+  }
+  .log-empty{font-size:12.5px; color:var(--muted); text-align:center; padding:14px 0;}
+  .log-add-form{border-top:1px solid var(--line); padding-top:14px; display:flex; flex-direction:column; gap:8px;}
+  .log-add-form .row{display:flex; gap:8px; align-items:center;}
+  .log-add-form input[type=date]{
+    border:1px solid var(--line); border-radius:8px; padding:7px 9px; font-family:'IBM Plex Mono', monospace; font-size:13px;
+  }
+  .log-add-form textarea{
+    width:100%; min-height:70px; font-family:'Pretendard'; font-size:13px; padding:8px;
+    border:1px solid var(--line); border-radius:8px; resize:vertical;
+  }
+  .log-add-form .next-seq{font-size:12px; color:var(--ink-soft); font-weight:600;}
+
+  .log-list{display:flex; flex-direction:column; gap:10px;}
+  .log-date{font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft); min-width:76px;}
+  .log-expand-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:10px; margin-bottom:12px;}
+  .log-field label{display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
+  .log-field select, .log-field .cell-input{width:100%;}
   .chip{
     display:inline-block; font-family:'IBM Plex Mono', monospace; font-size:11px;
     background:var(--bg); border:1px solid var(--line); border-radius:5px;
@@ -222,23 +293,27 @@
 <main>
   <section class="card">
     <div class="card-head-row">
-      <h2 style="margin:0;"><span class="tag">1</span> 참여 신청 현황</h2>
-      <div style="display:flex; gap:8px;">
-        <label class="btn ghost small" for="importFileInput" style="cursor:pointer; margin:0;">
-          엑셀 불러오기
-          <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none;">
-        </label>
-        <button class="btn ghost small" id="exportBtn">CSV 내보내기</button>
-      </div>
+      <h2 style="margin:0;"><span class="tag">1</span> 상담 데이터 관리</h2>
     </div>
-    <p class="hint" id="importStatus" style="display:none; margin-bottom:12px;"></p>
 
     <div class="view-tabs">
-      <button class="view-tab active" data-view="list">목록 보기</button>
+      <button class="view-tab active" data-view="list">상담신청목록</button>
       <button class="view-tab" data-view="calendar">캘린더 보기</button>
+      <button class="view-tab" data-view="log">상담일지관리</button>
     </div>
 
     <div id="listView">
+      <div class="card-head-row">
+        <span class="hint" style="margin:0;">개별 상담 신청 현황</span>
+        <div style="display:flex; gap:8px;">
+          <label class="btn ghost small" for="importFileInput" style="cursor:pointer; margin:0;">
+            엑셀 불러오기
+            <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none;">
+          </label>
+          <button class="btn ghost small" id="exportBtn">CSV 내보내기</button>
+        </div>
+      </div>
+      <p class="hint" id="importStatus" style="display:none; margin-bottom:12px;"></p>
       <div class="filter-row">
         <input type="text" id="searchNameInput" placeholder="학생 이름으로 검색">
         <input type="text" id="searchSchoolNameInput" placeholder="학교 이름으로 검색">
@@ -277,8 +352,69 @@
         <div id="calDetailList"></div>
       </div>
     </div>
+
+    <div id="logView" style="display:none;">
+      <div class="card-head-row">
+        <span class="hint" style="margin:0;">상담일지 (방문·전화 상담 기록)</span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-highlight" id="logAddNewBtn" style="margin:0;">+ 상담기록추가</button>
+          <label class="btn ghost small" for="logImportFileInput" style="cursor:pointer; margin:0;">
+            엑셀 불러오기
+            <input type="file" id="logImportFileInput" accept=".xlsx,.xls" style="display:none;">
+          </label>
+          <button class="btn ghost small" id="logExportBtn">CSV 내보내기</button>
+        </div>
+      </div>
+      <p class="hint" id="logImportStatus" style="display:none; margin-bottom:12px;"></p>
+      <div class="filter-row">
+        <input type="text" id="logSearchNameInput" placeholder="이름으로 검색">
+        <input type="text" id="logSearchSchoolInput" placeholder="중학교로 검색">
+        <input type="text" id="logSearchCounselorInput" placeholder="상담자로 검색">
+        <div class="date-range">
+          <input type="date" id="logSearchDateStartInput" title="상담 날짜 시작">
+          <span>~</span>
+          <input type="date" id="logSearchDateEndInput" title="상담 날짜 끝">
+        </div>
+        <select id="logSortModeSelect">
+          <option value="recent">최근 등록순</option>
+          <option value="name">이름순</option>
+          <option value="date">상담 날짜순</option>
+        </select>
+        <button class="btn ghost small" id="logSortDirBtn" title="정렬 순서 뒤집기">↓ 정순</button>
+        <button class="btn ghost small" id="logClearFilterBtn">초기화</button>
+      </div>
+      <div id="logList"><p class="empty">아직 등록된 상담일지가 없습니다.</p></div>
+    </div>
   </section>
 </main>
+
+<div class="modal-overlay" id="logModalOverlay">
+  <div class="card-modal">
+    <div class="card-header">
+      <div>
+        <h3 id="logCardName"></h3>
+        <p id="logCardSub" class="card-sub"></p>
+      </div>
+      <button class="card-close" id="logCardClose">✕</button>
+    </div>
+    <div class="card-body">
+      <div class="section-title">
+        <span>누적 상담 기록</span>
+        <span class="log-count" id="logCardCount">총 0회</span>
+      </div>
+      <div class="log-list" id="logCardList"></div>
+
+      <div class="log-add-form">
+        <div class="row">
+          <span class="next-seq" id="logNextSeqLabel">1차 상담 등록</span>
+        </div>
+        <div class="log-expand-grid" id="logAddGrid"></div>
+        <textarea id="logNewContent" placeholder="이번 상담 내용을 입력하세요"></textarea>
+        <button class="btn" id="logAddBtn" style="align-self:flex-end;">+ 상담 기록 추가</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -405,6 +541,7 @@ function rowHtml(r){
       <td><input type="text" class="note-input" data-note="${r.id}" value="${escapeHtml(r.note || '')}" placeholder="메모"></td>
       <td>
         <div class="row-actions">
+          <button class="btn ghost small" data-tolog="${r.id}">상담관리</button>
           <button class="btn ghost small" data-edit="${r.id}">수정</button>
           <button class="btn danger small" data-delres="${r.id}">삭제</button>
         </div>
@@ -452,10 +589,10 @@ function renderResponses(){
 
   wrap.innerHTML = `
     <div class="table-scroll">
-    <table id="responsesTable">
+    <table id="responsesTable" class="data-table">
       <thead><tr>
         <th>접수일자</th><th>학생 성명</th><th>성별</th><th>학년</th><th>학교 이름</th><th>학교 소재지</th>
-        <th>학부모 연락처</th><th>방문인원</th><th>상담방법</th><th>희망 날짜</th><th>희망 시간</th>
+        <th>학부모 연락처</th><th>방문인원</th><th>상담방법</th><th>상담희망날짜</th><th>상담희망시간</th>
         <th>확정 여부</th><th>중복 허용</th><th>비고</th><th></th>
       </tr></thead>
       <tbody>
@@ -517,6 +654,48 @@ function renderResponses(){
       renderResponses();
     });
   });
+  wrap.querySelectorAll('[data-tolog]').forEach(btn => {
+    btn.addEventListener('click', () => sendToCounselingLog(btn.getAttribute('data-tolog')));
+  });
+}
+
+// 신청 건 하나를 상담일지관리로 보내기 (없으면 1차 상담 기록 생성, 있으면 바로 열기)
+async function sendToCounselingLog(responseId){
+  const r = responses.find(x => x.id === responseId);
+  if(!r) return;
+  const name = (r.studentName ?? r.name ?? '').trim();
+  if(!name){ alert('학생 이름이 없어 상담일지로 보낼 수 없습니다.'); return; }
+
+  const already = logs.some(l => l.name === name && l.date === r.date);
+  if(!already){
+    const method = r.consultMethod || '';
+    const payload = {
+      consultType: method.includes('전화') ? '전화' : (method.includes('대면') ? '방문' : ''),
+      date: r.date || '',
+      name,
+      gender: (r.gender || '').replace('학생',''),
+      grade: (r.grade || '').replace('학년',''),
+      region: r.schoolLocation || '',
+      middleSchool: r.schoolName || '',
+      gradeRank: '',
+      studentPhone: '',
+      guardianPhone: r.parentPhone || '',
+      admissionWill: '',
+      visitor: '',
+      counselor: '',
+      summary: '',
+      createdAt: serverTimestamp()
+    };
+    try{
+      await addDoc(collection(db, 'counselingLogs'), payload);
+      logs.push(payload);
+    }catch(err){
+      alert('상담일지 생성 중 문제가 발생했습니다: ' + err.message);
+      return;
+    }
+  }
+  document.querySelector('.view-tab[data-view="log"]').click();
+  openLogCard(name);
 }
 
 document.getElementById('searchNameInput').addEventListener('input', (e) => {
@@ -581,7 +760,9 @@ document.querySelectorAll('.view-tab').forEach(btn => {
     const view = btn.getAttribute('data-view');
     document.getElementById('listView').style.display = view === 'list' ? '' : 'none';
     document.getElementById('calendarView').style.display = view === 'calendar' ? '' : 'none';
+    document.getElementById('logView').style.display = view === 'log' ? '' : 'none';
     if(view === 'calendar') renderCalendar();
+    if(view === 'log') renderLogs();
   });
 });
 
@@ -699,11 +880,424 @@ document.getElementById('calDetailToListBtn').addEventListener('click', () => {
   renderResponses();
 });
 
+// ------------------------------------------------------------------
+// 상담일지관리 ("상담일지" 시트: 상담유형/상담날짜/이름/성별/학년/출신 지역/중학교/
+// 내신성적(등수)/연락처(학생)/연락처(보호자)/입학의지(상담이후)/내담자/상담자/상담요약)
+// ------------------------------------------------------------------
+let logs = [];
+let logFilterName = '';
+let logFilterSchool = '';
+let logFilterCounselor = '';
+let logFilterDateStart = '';
+let logFilterDateEnd = '';
+let logSortMode = 'recent';
+let logSortReverse = false;
+
+const LOG_CONSULT_TYPE_OPTIONS = ['방문','전화'];
+const LOG_GENDER_OPTIONS = ['남','여'];
+const LOG_WILL_OPTIONS = ['강함','상','중상','중','중하','하'];
+
+onSnapshot(collection(db, 'counselingLogs'), snap => {
+  logs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  renderLogs();
+  if(openLogName) renderLogCardModal();
+});
+
+function logCountForName(name){
+  return logs.filter(l => l.name === name).length;
+}
+
+function logRowHtml(r){
+  const preview = String(r.summary||'').slice(0, 40);
+  return `
+    <tr>
+      <td>${formatDate(r.date)}</td>
+      <td><span class="chip">${escapeHtml(r.consultType||'')}</span></td>
+      <td>
+        <span class="name-link" data-lognameclick="${escapeHtml(r.name||'')}">${escapeHtml(r.name||'')}</span>
+        <span class="log-count-badge ${logCountForName(r.name)<=1 ? 'zero':''}">${logCountForName(r.name)}회</span>
+      </td>
+      <td>${escapeHtml(r.grade||'')}</td>
+      <td>${escapeHtml(r.middleSchool||'')}</td>
+      <td>${escapeHtml(r.counselor||'')}</td>
+      <td>${escapeHtml(preview)}${(r.summary||'').length > 40 ? '…' : ''}</td>
+      <td><button class="btn danger small" data-logdel="${r.id}">삭제</button></td>
+    </tr>
+  `;
+}
+
+function renderLogs(){
+  const wrap = document.getElementById('logList');
+
+  const filtered = logs.filter(r => {
+    if(logFilterName && !String(r.name||'').includes(logFilterName)) return false;
+    if(logFilterSchool && !String(r.middleSchool||'').includes(logFilterSchool)) return false;
+    if(logFilterCounselor && !String(r.counselor||'').includes(logFilterCounselor)) return false;
+    if(logFilterDateStart && r.date < logFilterDateStart) return false;
+    if(logFilterDateEnd && r.date > logFilterDateEnd) return false;
+    return true;
+  });
+
+  if(filtered.length === 0){
+    wrap.innerHTML = logs.length === 0
+      ? '<p class="empty">아직 등록된 상담일지가 없습니다.</p>'
+      : '<p class="empty">조건에 맞는 상담일지가 없습니다.</p>';
+    return;
+  }
+
+  let sorted;
+  if(logSortMode === 'name'){
+    sorted = [...filtered].sort((a,b) => String(a.name||'').localeCompare(String(b.name||''), 'ko'));
+  } else if(logSortMode === 'date'){
+    sorted = [...filtered].sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+  } else {
+    sorted = [...filtered].sort((a,b) => {
+      const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return tb - ta;
+    });
+  }
+  if(logSortReverse) sorted.reverse();
+
+  wrap.innerHTML = `
+    <div class="table-scroll">
+    <table id="logTable" class="data-table">
+      <thead><tr>
+        <th>상담날짜</th><th>상담유형</th><th>이름</th><th>학년</th><th>중학교</th><th>상담자</th><th>상담요약</th><th></th>
+      </tr></thead>
+      <tbody>${sorted.map(logRowHtml).join('')}</tbody>
+    </table>
+    </div>
+  `;
+
+  wrap.querySelectorAll('[data-logdel]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if(confirm('이 상담일지를 삭제할까요?')){
+        await deleteDoc(doc(db, 'counselingLogs', btn.getAttribute('data-logdel')));
+      }
+    });
+  });
+  wrap.querySelectorAll('[data-lognameclick]').forEach(el => {
+    el.addEventListener('click', () => openLogCard(el.getAttribute('data-lognameclick')));
+  });
+}
+
+// ------------------------------------------------------------------
+// 이름 클릭 → 누적 상담 기록(1차/2차/3차...) 모달
+// ------------------------------------------------------------------
+let openLogName = null;
+let logModalEditingId = null;
+
+function openLogCard(name){
+  openLogName = name;
+  logModalEditingId = null;
+  document.getElementById('logModalOverlay').classList.add('show');
+  renderLogCardModal();
+}
+function closeLogCard(){
+  openLogName = null;
+  logModalEditingId = null;
+  document.getElementById('logModalOverlay').classList.remove('show');
+}
+document.getElementById('logCardClose').addEventListener('click', closeLogCard);
+document.getElementById('logModalOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'logModalOverlay') closeLogCard();
+});
+
+const LOG_FORM_FIELDS = [
+  ['consultType','상담유형','select', LOG_CONSULT_TYPE_OPTIONS],
+  ['date','상담날짜','date'],
+  ['gender','성별','select', LOG_GENDER_OPTIONS],
+  ['grade','학년','text'],
+  ['region','출신 지역','text'],
+  ['middleSchool','중학교','text'],
+  ['gradeRank','내신성적(등수)','text'],
+  ['studentPhone','연락처(학생)','text'],
+  ['guardianPhone','연락처(보호자)','text'],
+  ['admissionWill','입학의지','select', LOG_WILL_OPTIONS],
+  ['visitor','내담자','text'],
+  ['counselor','상담자','text'],
+];
+
+function logFormGridHtml(entry, idPrefix){
+  return LOG_FORM_FIELDS.map(([field, label, type, opts]) => {
+    const val = escapeHtml(entry[field] || '');
+    const input = type === 'select'
+      ? selectHtml(field, entry[field]||'', opts)
+      : `<input class="cell-input" type="${type}" data-field="${field}" value="${val}">`;
+    return `<div class="log-field"><label>${label}</label>${input}</div>`;
+  }).join('');
+}
+
+function renderLogCardModal(){
+  const entries = logs.filter(l => l.name === openLogName)
+    .sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+
+  document.getElementById('logCardName').textContent = openLogName;
+  const latest = entries[entries.length-1] || {};
+  document.getElementById('logCardSub').textContent = [latest.middleSchool, latest.grade ? `${latest.grade}학년` : '', latest.counselor].filter(Boolean).join(' · ');
+  document.getElementById('logCardCount').textContent = `총 ${entries.length}회`;
+
+  const listEl = document.getElementById('logCardList');
+  if(entries.length === 0){
+    listEl.innerHTML = '<p class="log-empty">아직 등록된 상담 기록이 없습니다. 아래에서 첫 상담 기록을 추가해주세요.</p>';
+  } else {
+  listEl.innerHTML = entries.map((entry, idx) => {
+    const seq = idx + 1;
+    const isEditing = logModalEditingId === entry.id;
+    if(isEditing){
+      return `
+        <div class="log-entry" data-logentry="${entry.id}">
+          <div class="log-entry-head">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="log-seq">${seq}차</span>
+            </div>
+            <div class="log-entry-actions">
+              <button data-logmodalcancel="${entry.id}">취소</button>
+            </div>
+          </div>
+          <div class="log-expand-grid">${logFormGridHtml(entry)}</div>
+          <div class="log-field" style="margin-bottom:10px;">
+            <label>상담요약</label>
+            <textarea class="log-content-edit" data-field="summary">${escapeHtml(entry.summary||'')}</textarea>
+          </div>
+          <div style="display:flex; justify-content:flex-end;">
+            <button class="btn small" data-logmodalsave="${entry.id}">저장</button>
+          </div>
+        </div>
+      `;
+    }
+    return `
+      <div class="log-entry">
+        <div class="log-entry-head">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="log-seq">${seq}차</span>
+            <span class="log-date">${escapeHtml(entry.date||'')} · ${escapeHtml(entry.consultType||'')}${entry.counselor ? ' · '+escapeHtml(entry.counselor) : ''}</span>
+          </div>
+          <div class="log-entry-actions">
+            <button data-logmodaledit="${entry.id}">수정</button>
+            <button data-logmodaldel="${entry.id}">삭제</button>
+          </div>
+        </div>
+        <div class="log-content">${escapeHtml(entry.summary||'') || '(작성된 상담요약 없음)'}</div>
+      </div>
+    `;
+  }).join('');
+  }
+
+  listEl.querySelectorAll('[data-logmodaledit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      logModalEditingId = btn.getAttribute('data-logmodaledit');
+      renderLogCardModal();
+    });
+  });
+  listEl.querySelectorAll('[data-logmodalcancel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      logModalEditingId = null;
+      renderLogCardModal();
+    });
+  });
+  listEl.querySelectorAll('[data-logmodalsave]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-logmodalsave');
+      const entryEl = listEl.querySelector(`.log-entry[data-logentry="${id}"]`);
+      const fields = {};
+      entryEl.querySelectorAll('[data-field]').forEach(el => {
+        fields[el.getAttribute('data-field')] = el.value.trim();
+      });
+      await updateDoc(doc(db, 'counselingLogs', id), fields);
+      logModalEditingId = null;
+      if(fields.name && fields.name !== openLogName) openLogName = fields.name;
+    });
+  });
+  listEl.querySelectorAll('[data-logmodaldel]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if(!confirm('이 상담 기록을 삭제할까요?')) return;
+      await deleteDoc(doc(db, 'counselingLogs', btn.getAttribute('data-logmodaldel')));
+    });
+  });
+
+  // 추가 폼: 최근 기록 값으로 기본 채움
+  const addGrid = document.getElementById('logAddGrid');
+  addGrid.innerHTML = logFormGridHtml({ ...latest, date:'' });
+  document.getElementById('logNewContent').value = '';
+  document.getElementById('logNextSeqLabel').textContent = `${entries.length+1}차 상담 등록`;
+}
+
+document.getElementById('logAddBtn').addEventListener('click', async () => {
+  if(!openLogName) return;
+  const content = document.getElementById('logNewContent').value.trim();
+  if(!content){ alert('상담 내용을 입력해주세요.'); return; }
+  const addGrid = document.getElementById('logAddGrid');
+  const fields = { name: openLogName, summary: content };
+  addGrid.querySelectorAll('[data-field]').forEach(el => {
+    fields[el.getAttribute('data-field')] = el.value.trim();
+  });
+  if(!fields.date){ alert('상담 날짜를 선택해주세요.'); return; }
+  fields.createdAt = serverTimestamp();
+  await addDoc(collection(db, 'counselingLogs'), fields);
+});
+
+document.getElementById('logAddNewBtn').addEventListener('click', () => {
+  const name = prompt('상담 기록을 추가할 학생(또는 문의자) 이름을 입력하세요');
+  if(!name || !name.trim()) return;
+  openLogCard(name.trim());
+});
+
+document.getElementById('logSearchNameInput').addEventListener('input', (e) => {
+  logFilterName = e.target.value.trim();
+  renderLogs();
+});
+document.getElementById('logSearchSchoolInput').addEventListener('input', (e) => {
+  logFilterSchool = e.target.value.trim();
+  renderLogs();
+});
+document.getElementById('logSearchCounselorInput').addEventListener('input', (e) => {
+  logFilterCounselor = e.target.value.trim();
+  renderLogs();
+});
+document.getElementById('logSearchDateStartInput').addEventListener('input', (e) => {
+  logFilterDateStart = e.target.value;
+  renderLogs();
+});
+document.getElementById('logSearchDateEndInput').addEventListener('input', (e) => {
+  logFilterDateEnd = e.target.value;
+  renderLogs();
+});
+document.getElementById('logSortModeSelect').addEventListener('change', (e) => {
+  logSortMode = e.target.value;
+  renderLogs();
+});
+document.getElementById('logSortDirBtn').addEventListener('click', () => {
+  logSortReverse = !logSortReverse;
+  document.getElementById('logSortDirBtn').textContent = logSortReverse ? '↑ 역순' : '↓ 정순';
+  renderLogs();
+});
+document.getElementById('logClearFilterBtn').addEventListener('click', () => {
+  logFilterName = '';
+  logFilterSchool = '';
+  logFilterCounselor = '';
+  logFilterDateStart = '';
+  logFilterDateEnd = '';
+  logSortMode = 'recent';
+  logSortReverse = false;
+  document.getElementById('logSearchNameInput').value = '';
+  document.getElementById('logSearchSchoolInput').value = '';
+  document.getElementById('logSearchCounselorInput').value = '';
+  document.getElementById('logSearchDateStartInput').value = '';
+  document.getElementById('logSearchDateEndInput').value = '';
+  document.getElementById('logSortModeSelect').value = 'recent';
+  document.getElementById('logSortDirBtn').textContent = '↓ 정순';
+  renderLogs();
+});
+
+document.getElementById('logExportBtn').addEventListener('click', () => {
+  if(logs.length === 0){ alert('내보낼 상담일지가 없습니다.'); return; }
+  const header = [
+    '상담유형','상담날짜','이름','성별','학년','출신 지역','중학교','내신성적 (등수)',
+    '연락처(학생)','연락처(보호자)','입학의지 (상담이후)','내담자','상담자','상담요약'
+  ];
+  const rows = logs.map(r => [
+    r.consultType||'', r.date||'', r.name||'', r.gender||'', r.grade||'', r.region||'',
+    r.middleSchool||'', r.gradeRank||'', r.studentPhone||'', r.guardianPhone||'',
+    r.admissionWill||'', r.visitor||'', r.counselor||'', r.summary||''
+  ]);
+  const csv = [header, ...rows].map(row =>
+    row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')
+  ).join('\n');
+  const blob = new Blob(["\uFEFF" + csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = '상담일지.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('logImportFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('logImportStatus');
+  statusEl.style.display = 'block';
+  statusEl.textContent = '엑셀 파일을 읽는 중...';
+
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array', cellDates:true });
+    const sheetName = wb.SheetNames.find(n => n.includes('상담일지')) || wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const sheetRows = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+
+    const targetRows = sheetRows.filter(row => String(row['이름'] || '').trim());
+    if(targetRows.length === 0){
+      statusEl.textContent = `"${sheetName}" 시트에서 이름이 있는 행을 찾지 못했습니다. 컬럼명을 확인해주세요.`;
+      e.target.value = '';
+      return;
+    }
+    if(!confirm(`"${sheetName}" 시트에서 ${targetRows.length}건을 찾았습니다. 불러올까요? (이름·날짜·상담자가 같은 건은 건너뜁니다)`)){
+      e.target.value = '';
+      return;
+    }
+
+    let success = 0, duplicate = 0, needsReview = [];
+
+    for(const row of targetRows){
+      const name = String(row['이름']).trim();
+      const dateStr = parseExcelDate(row['상담날짜']);
+      const counselor = String(row['상담자'] || '').trim();
+
+      if(!dateStr){
+        needsReview.push(`${name} (날짜 확인 필요)`);
+        continue;
+      }
+
+      const isDuplicate = logs.some(r => r.name === name && r.date === dateStr && r.counselor === counselor);
+      if(isDuplicate){ duplicate++; continue; }
+
+      const gradeRaw = row['학년'];
+      const grade = gradeRaw === '' || gradeRaw === undefined ? '' : String(Math.round(Number(gradeRaw)));
+
+      const payload = {
+        consultType: String(row['상담유형'] || '').trim(),
+        date: dateStr,
+        name,
+        gender: String(row['성별'] || '').trim(),
+        grade,
+        region: String(row['출신 지역'] || '').trim(),
+        middleSchool: String(row['중학교'] || '').trim(),
+        gradeRank: String(row['내신성적 (등수)'] || '').trim(),
+        studentPhone: String(row['연락처(학생)'] || '').trim(),
+        guardianPhone: String(row['연락처(보호자)'] || '').trim(),
+        admissionWill: String(row['입학의지 (상담이후)'] || '').trim(),
+        visitor: String(row['내담자'] || '').trim(),
+        counselor,
+        summary: String(row['상담요약'] || '').trim(),
+        createdAt: serverTimestamp()
+      };
+
+      try{
+        await addDoc(collection(db, 'counselingLogs'), payload);
+        logs.push(payload);
+        success++;
+      }catch(err){
+        needsReview.push(`${name} (저장 실패)`);
+      }
+    }
+
+    let msg = `${success}건 가져오기 완료`;
+    if(duplicate > 0) msg += ` · ${duplicate}건은 이미 등록되어 건너뜀`;
+    if(needsReview.length > 0) msg += ` · 확인 필요 ${needsReview.length}건: ${needsReview.join(', ')}`;
+    statusEl.textContent = msg;
+  }catch(err){
+    statusEl.textContent = '엑셀 파일을 읽는 중 오류가 발생했습니다: ' + err.message;
+  }
+  e.target.value = '';
+});
+
 document.getElementById('exportBtn').addEventListener('click', () => {
   if(responses.length === 0){ alert('내보낼 신청 기록이 없습니다.'); return; }
   const header = [
     '학생 성명','성별','학년','학교 이름','학교 소재지','학부모 연락처','방문인원','상담방법',
-    '희망 날짜','희망 시간','상담 확정 여부','동일 시간 중복 허용 여부','비고'
+    '상담희망날짜','상담희망시간','상담 확정 여부','동일 시간 중복 허용 여부','비고'
   ];
   const rows = responses.map(r => [
     r.studentName ?? r.name ?? '',
