@@ -35,7 +35,7 @@
   }
   header{
     padding:32px 20px 20px;
-    max-width:1600px;
+    max-width:1900px;
     margin:0 auto;
   }
   .eyebrow{
@@ -69,7 +69,7 @@
   .title-edit-btn:hover{border-color:var(--green-soft); color:var(--green-soft);}
   .sub{color:var(--ink-soft); font-size:14px; margin:0;}
   .hint{font-size:13px; color:var(--ink-soft); line-height:1.6;}
-  main{max-width:1600px; margin:0 auto; padding:0 20px;}
+  main{max-width:1900px; margin:0 auto; padding:0 20px;}
   section.card{
     background:var(--paper);
     border:1px solid var(--line);
@@ -113,13 +113,16 @@
   .btn.danger{background:transparent; color:var(--red); border:1px solid var(--red-tint);}
   .btn.danger:hover{background:var(--red-tint);}
   .btn.small{padding:5px 10px; font-size:12px;}
+  .btn.tiny{padding:3px 6px; font-size:11px; line-height:1.25; white-space:normal; text-align:center; min-width:44px;}
   .btn-highlight{background:var(--red); border-color:var(--red); color:#fff;}
   .btn-highlight:hover{background:#a3390d; border-color:#a3390d;}
   .empty{color:var(--muted); font-size:14px; padding:10px 0;}
 
   .table-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch;}
   .data-table{width:100%; border-collapse:collapse; font-size:13px;}
-  #responsesTable{min-width:1180px;}
+  #responsesTable{min-width:1420px;}
+  #responsesTable td:has(input[data-counselor]){width:56px;}
+  #responsesTable input[data-counselor]{width:56px; min-width:0; padding:6px 4px; text-align:center;}
   #logTable{min-width:900px;}
   .data-table th{
     text-align:left; font-family:'IBM Plex Mono', monospace; font-weight:600;
@@ -273,7 +276,7 @@
   .cal-detail-sub{color:var(--ink-soft); font-size:12px; margin-top:2px;}
 
   #configNotice{
-    max-width:1600px; margin:20px auto 0; padding:14px 18px;
+    max-width:1900px; margin:20px auto 0; padding:14px 18px;
     background:var(--red-tint); border:1px solid #E9C4B0; border-radius:var(--radius);
     font-size:13px; line-height:1.6; display:none;
   }
@@ -416,6 +419,21 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="noteModalOverlay">
+  <div class="card-modal" style="max-width:420px;">
+    <div class="card-header">
+      <div><h3>비고</h3></div>
+      <button class="card-close" id="noteModalClose">✕</button>
+    </div>
+    <div class="card-body">
+      <textarea id="noteModalTextarea" class="log-content-edit" style="min-height:180px;"></textarea>
+      <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+        <button class="btn small" id="noteModalSaveBtn">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -513,7 +531,9 @@ function rowHtml(r){
         <td>${selectHtml('time', r.time||'', TIME_OPTIONS)}</td>
         <td><button class="btn ${r.confirmed ? '' : 'ghost'} small" data-confirm="${r.id}" data-val="${r.confirmed}">${r.confirmed ? '확정' : '미확정'}</button></td>
         <td><button class="btn ${r.duplicateAllowed ? '' : 'ghost'} small" data-dup="${r.id}" data-val="${r.duplicateAllowed}">${r.duplicateAllowed ? '허용' : '제한'}</button></td>
-        <td><input class="note-input" data-field="note" value="${escapeHtml(r.note||'')}" placeholder="메모"></td>
+        <td><button class="btn ${r.completed ? '' : 'ghost'} small" data-completed="${r.id}" data-val="${r.completed}">${r.completed ? '완료' : '미완료'}</button></td>
+        <td><input class="cell-input" data-field="counselor" value="${escapeHtml(r.counselor||'')}"></td>
+        <td><input class="cell-input" data-field="note" value="${escapeHtml(r.note||'')}" placeholder="메모"></td>
         <td>
           <div class="row-actions">
             <button class="btn small" data-save="${r.id}">저장</button>
@@ -538,10 +558,17 @@ function rowHtml(r){
       <td>${r.time ? `<span class="chip">${escapeHtml(r.time)}</span>` : (r.times||[]).map(t => `<span class="chip">${escapeHtml(t)}</span>`).join('')}</td>
       <td><button class="btn ${r.confirmed ? '' : 'ghost'} small" data-confirm="${r.id}" data-val="${r.confirmed}">${r.confirmed ? '확정' : '미확정'}</button></td>
       <td><button class="btn ${r.duplicateAllowed ? '' : 'ghost'} small" data-dup="${r.id}" data-val="${r.duplicateAllowed}">${r.duplicateAllowed ? '허용' : '제한'}</button></td>
-      <td><input type="text" class="note-input" data-note="${r.id}" value="${escapeHtml(r.note || '')}" placeholder="메모"></td>
+      <td><button class="btn ${r.completed ? '' : 'ghost'} small" data-completed="${r.id}" data-val="${r.completed}">${r.completed ? '완료' : '미완료'}</button></td>
+      <td><input type="text" class="note-input" data-counselor="${r.id}" value="${escapeHtml(r.counselor || '')}" placeholder="상담자"></td>
+      <td>
+        <div style="display:flex; gap:4px; align-items:center;">
+          <input type="text" class="note-input" data-note="${r.id}" value="${escapeHtml(r.note || '')}" placeholder="메모" style="flex:1;">
+          <button class="btn ghost small" data-noteopen="${r.id}">자세히</button>
+        </div>
+      </td>
       <td>
         <div class="row-actions">
-          <button class="btn ghost small" data-tolog="${r.id}">상담관리</button>
+          <button class="btn ghost tiny" data-tolog="${r.id}">상담<br>관리</button>
           <button class="btn ghost small" data-edit="${r.id}">수정</button>
           <button class="btn danger small" data-delres="${r.id}">삭제</button>
         </div>
@@ -591,9 +618,9 @@ function renderResponses(){
     <div class="table-scroll">
     <table id="responsesTable" class="data-table">
       <thead><tr>
-        <th>접수일자</th><th>학생 성명</th><th>성별</th><th>학년</th><th>학교 이름</th><th>학교 소재지</th>
-        <th>학부모 연락처</th><th>방문인원</th><th>상담방법</th><th>상담희망날짜</th><th>상담희망시간</th>
-        <th>확정 여부</th><th>중복 허용</th><th>비고</th><th></th>
+        <th>접수일자</th><th style="text-align:center;">학생<br>성명</th><th>성별</th><th>학년</th><th>학교 이름</th><th>학교 소재지</th>
+        <th>학부모 연락처</th><th style="text-align:center;">방문<br>인원</th><th>상담방법</th><th>상담희망날짜</th><th>상담희망시간</th>
+        <th style="text-align:center;">확정<br>여부</th><th style="text-align:center;">중복<br>허용</th><th style="text-align:center;">상담<br>완료</th><th>상담자</th><th>비고</th><th></th>
       </tr></thead>
       <tbody>
         ${sorted.map(rowHtml).join('')}
@@ -618,6 +645,28 @@ function renderResponses(){
     btn.addEventListener('click', async () => {
       const cur = btn.getAttribute('data-val') === 'true';
       await updateDoc(doc(db, 'responses', btn.getAttribute('data-dup')), { duplicateAllowed: !cur });
+    });
+  });
+  wrap.querySelectorAll('[data-completed]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cur = btn.getAttribute('data-val') === 'true';
+      await updateDoc(doc(db, 'responses', btn.getAttribute('data-completed')), { completed: !cur });
+    });
+  });
+  wrap.querySelectorAll('[data-counselor]').forEach(inp => {
+    inp.addEventListener('blur', async () => {
+      const id = inp.getAttribute('data-counselor');
+      const val = inp.value.trim();
+      const current = responses.find(r => r.id === id);
+      if(current && (current.counselor||'') === val) return;
+      await updateDoc(doc(db, 'responses', id), { counselor: val });
+    });
+  });
+  wrap.querySelectorAll('[data-noteopen]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-noteopen');
+      const current = responses.find(r => r.id === id);
+      openNoteModal(id, current?.note || '');
     });
   });
   wrap.querySelectorAll('[data-note]').forEach(inp => {
@@ -659,7 +708,27 @@ function renderResponses(){
   });
 }
 
-// 신청 건 하나를 상담일지관리로 보내기 (없으면 1차 상담 기록 생성, 있으면 바로 열기)
+// 비고 자세히 보기 팝업
+let noteModalTargetId = null;
+function openNoteModal(id, currentVal){
+  noteModalTargetId = id;
+  document.getElementById('noteModalTextarea').value = currentVal || '';
+  document.getElementById('noteModalOverlay').classList.add('show');
+}
+document.getElementById('noteModalClose').addEventListener('click', () => {
+  document.getElementById('noteModalOverlay').classList.remove('show');
+});
+document.getElementById('noteModalOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'noteModalOverlay') document.getElementById('noteModalOverlay').classList.remove('show');
+});
+document.getElementById('noteModalSaveBtn').addEventListener('click', async () => {
+  if(!noteModalTargetId) return;
+  const val = document.getElementById('noteModalTextarea').value.trim();
+  await updateDoc(doc(db, 'responses', noteModalTargetId), { note: val });
+  document.getElementById('noteModalOverlay').classList.remove('show');
+});
+
+// 신청 건 하나를 상담일지관리로 보내기 (상담일지관리 탭으로 이동하지 않고, 모달만 그 자리에서 연다)
 function sendToCounselingLog(responseId){
   const r = responses.find(x => x.id === responseId);
   if(!r) return;
@@ -680,10 +749,11 @@ function sendToCounselingLog(responseId){
     admissionWill: '',
     visitor: ''
   };
+  const key = logKeyFor(name, r.schoolName || '');
+  logAddSeedKey = key;
   logAddSeedName = name;
 
-  document.querySelector('.view-tab[data-view="log"]').click();
-  openLogCard(name);
+  openLogCard(key, name);
 }
 
 document.getElementById('searchNameInput').addEventListener('input', (e) => {
@@ -888,22 +958,27 @@ const LOG_WILL_OPTIONS = ['강함','상','중상','중','중하','하'];
 onSnapshot(collection(db, 'counselingLogs'), snap => {
   logs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
   renderLogs();
-  if(openLogName) renderLogCardModal();
+  if(openLogKey) renderLogCardModal();
 });
 
-function logCountForName(name){
-  return logs.filter(l => l.name === name).length;
+function logKeyFor(name, school){
+  return `${String(name||'').trim()}__${String(school||'').trim()}`;
+}
+function logCountForKey(key){
+  return logs.filter(l => logKeyFor(l.name, l.middleSchool) === key).length;
 }
 
 function logRowHtml(r){
   const preview = String(r.summary||'').slice(0, 40);
+  const key = logKeyFor(r.name, r.middleSchool);
   return `
     <tr>
       <td>${formatDate(r.date)}</td>
       <td><span class="chip">${escapeHtml(r.consultType||'')}</span></td>
       <td>
-        <span class="name-link" data-lognameclick="${escapeHtml(r.name||'')}">${escapeHtml(r.name||'')}</span>
-        <span class="log-count-badge ${logCountForName(r.name)<=1 ? 'zero':''}">${logCountForName(r.name)}회</span>
+        <span class="name-link" data-lognameclick="${escapeHtml(key)}" data-logdisplay="${escapeHtml(r.name||'')}">${escapeHtml(r.name||'')}</span>
+        ${r.middleSchool ? `<span class="log-meta">(${escapeHtml(r.middleSchool)})</span>` : ''}
+        <span class="log-count-badge ${logCountForKey(key)<=1 ? 'zero':''}">${logCountForKey(key)}회</span>
       </td>
       <td>${escapeHtml(r.grade||'')}</td>
       <td>${escapeHtml(r.middleSchool||'')}</td>
@@ -966,26 +1041,30 @@ function renderLogs(){
     });
   });
   wrap.querySelectorAll('[data-lognameclick]').forEach(el => {
-    el.addEventListener('click', () => openLogCard(el.getAttribute('data-lognameclick')));
+    el.addEventListener('click', () => openLogCard(el.getAttribute('data-lognameclick'), el.getAttribute('data-logdisplay')));
   });
 }
 
 // ------------------------------------------------------------------
 // 이름 클릭 → 누적 상담 기록(1차/2차/3차...) 모달
 // ------------------------------------------------------------------
-let openLogName = null;
+let openLogKey = null;
+let openLogDisplayName = null;
 let logModalEditingId = null;
 let logAddSeed = null;
+let logAddSeedKey = null;
 let logAddSeedName = null;
 
-function openLogCard(name){
-  openLogName = name;
+function openLogCard(key, displayName){
+  openLogKey = key;
+  openLogDisplayName = displayName || (key || '').split('__')[0];
   logModalEditingId = null;
   document.getElementById('logModalOverlay').classList.add('show');
   renderLogCardModal();
 }
 function closeLogCard(){
-  openLogName = null;
+  openLogKey = null;
+  openLogDisplayName = null;
   logModalEditingId = null;
   document.getElementById('logModalOverlay').classList.remove('show');
 }
@@ -1020,10 +1099,10 @@ function logFormGridHtml(entry, idPrefix){
 }
 
 function renderLogCardModal(){
-  const entries = logs.filter(l => l.name === openLogName)
+  const entries = logs.filter(l => logKeyFor(l.name, l.middleSchool) === openLogKey)
     .sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
 
-  document.getElementById('logCardName').textContent = openLogName;
+  document.getElementById('logCardName').textContent = openLogDisplayName || '';
   const latest = entries[entries.length-1] || {};
   document.getElementById('logCardSub').textContent = [latest.middleSchool, latest.grade ? `${latest.grade}학년` : '', latest.counselor].filter(Boolean).join(' · ');
   document.getElementById('logCardCount').textContent = `총 ${entries.length}회`;
@@ -1097,7 +1176,6 @@ function renderLogCardModal(){
       });
       await updateDoc(doc(db, 'counselingLogs', id), fields);
       logModalEditingId = null;
-      if(fields.name && fields.name !== openLogName) openLogName = fields.name;
     });
   });
   listEl.querySelectorAll('[data-logmodaldel]').forEach(btn => {
@@ -1109,7 +1187,7 @@ function renderLogCardModal(){
 
   // 추가 폼: 신규 학생이면 상담신청목록에서 넘어온 정보(seed)로, 아니면 최근 기록 값으로 기본 채움
   const addGrid = document.getElementById('logAddGrid');
-  const useSeed = entries.length === 0 && logAddSeed && logAddSeedName === openLogName;
+  const useSeed = entries.length === 0 && logAddSeed && logAddSeedKey === openLogKey;
   const base = useSeed ? logAddSeed : latest;
   addGrid.innerHTML = logFormGridHtml({ ...base, date: useSeed ? (base.date||'') : '' });
   document.getElementById('logNewContent').value = '';
@@ -1117,24 +1195,25 @@ function renderLogCardModal(){
 }
 
 document.getElementById('logAddBtn').addEventListener('click', async () => {
-  if(!openLogName) return;
+  if(!openLogKey) return;
   const content = document.getElementById('logNewContent').value.trim();
   if(!content){ alert('상담 내용을 입력해주세요.'); return; }
   const addGrid = document.getElementById('logAddGrid');
-  const fields = { name: openLogName, summary: content };
+  const fields = { name: openLogDisplayName, summary: content };
   addGrid.querySelectorAll('[data-field]').forEach(el => {
     fields[el.getAttribute('data-field')] = el.value.trim();
   });
   if(!fields.date){ alert('상담 날짜를 선택해주세요.'); return; }
   fields.createdAt = serverTimestamp();
   await addDoc(collection(db, 'counselingLogs'), fields);
-  if(logAddSeedName === openLogName){ logAddSeed = null; logAddSeedName = null; }
+  if(logAddSeedKey === openLogKey){ logAddSeed = null; logAddSeedKey = null; logAddSeedName = null; }
 });
 
 document.getElementById('logAddNewBtn').addEventListener('click', () => {
   const name = prompt('상담 기록을 추가할 학생(또는 문의자) 이름을 입력하세요');
   if(!name || !name.trim()) return;
-  openLogCard(name.trim());
+  const school = prompt('학교 이름을 입력하세요 (동명이인 구분용, 없으면 비워두세요)') || '';
+  openLogCard(logKeyFor(name.trim(), school.trim()), name.trim());
 });
 
 document.getElementById('logSearchNameInput').addEventListener('input', (e) => {
@@ -1290,7 +1369,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   if(responses.length === 0){ alert('내보낼 신청 기록이 없습니다.'); return; }
   const header = [
     '학생 성명','성별','학년','학교 이름','학교 소재지','학부모 연락처','방문인원','상담방법',
-    '상담희망날짜','상담희망시간','상담 확정 여부','동일 시간 중복 허용 여부','비고'
+    '상담희망날짜','상담희망시간','상담 확정 여부','동일 시간 중복 허용 여부','상담 완료 여부','상담자','비고'
   ];
   const rows = responses.map(r => [
     r.studentName ?? r.name ?? '',
@@ -1305,6 +1384,8 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     r.time || (r.times||[]).join(' / '),
     r.confirmed ? '확정' : '미확정',
     r.duplicateAllowed ? '허용' : '',
+    r.completed ? '완료' : '미완료',
+    r.counselor || '',
     r.note || ''
   ]);
   const csv = [header, ...rows].map(row =>
