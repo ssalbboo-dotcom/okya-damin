@@ -299,12 +299,9 @@ document.getElementById('parentPhoneInput').addEventListener('input', (e) => {
 
 function pad(n){ return String(n).padStart(2,'0'); }
 
-// 오늘을 기준으로, 선택한 '월'이 이미 지난 달이면 내년으로 간주 (연 선택 없이도 자연스럽게 다음 해로 넘어가도록)
+// 이 신청서는 8월~12월만 다루므로 항상 올해 연도를 사용 (다음 해로 넘기지 않음)
 function resolveYear(month){
-  const now = new Date();
-  const curYear = now.getFullYear();
-  const curMonth = now.getMonth() + 1;
-  return month < curMonth ? curYear + 1 : curYear;
+  return new Date().getFullYear();
 }
 
 function daysInMonth(year, month){
