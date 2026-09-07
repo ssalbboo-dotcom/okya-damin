@@ -177,7 +177,6 @@
 
     <div class="card">
       <p class="section-label">희망 상담 날짜·시간</p>
-      <p class="hint" style="margin-top:-6px; margin-bottom:16px;">전화상담 및 평일 상담의 경우 "시간협의필요"를 선택해주세요.</p>
       <div class="field date-row">
         <div>
           <label class="field-label">월</label>
@@ -191,6 +190,7 @@
       <div class="field">
         <label class="field-label">희망 시간</label>
         <select id="timeSelect" disabled><option value="">날짜를 먼저 선택하세요</option></select>
+        <p class="hint" style="margin-top:6px;">(이미 상담이 예정되어 있는 시간은 보여지지 않습니다.)</p>
       </div>
     </div>
 
@@ -246,13 +246,16 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // ------------------------------------------------------------------
-// 희망 시간 고정 옵션 (전화상담·평일상담은 "시간협의필요"로 신청)
+// 희망 시간 고정 옵션
 // ------------------------------------------------------------------
-const NEGOTIATE_LABEL = '시간협의필요';
-const FIXED_TIME_OPTIONS = [
-  '오전 10시~11시',
-  '오후 1시~2시','오후 3시~4시',
-  NEGOTIATE_LABEL
+const FIXED_TIME_OPTIONS = ['오전 10시~11시','오후 1시~2시','오후 3시~4시'];
+
+// 자체 행사로 상담이 불가능한 날짜 (월/일 기준 - 아예 날짜 선택지에서 제외)
+const BLOCKED_MONTH_DAYS = [
+  [9,23],[9,24],[9,25],[9,26],[9,27],[9,30],
+  [10,7],[10,8],[10,9],[10,13],[10,14],[10,15],
+  [11,19],[11,21],
+  [12,5]
 ];
 
 let responses = [];  // 기존 신청 내역 (중복 방지용)
@@ -331,10 +334,16 @@ monthSelect.addEventListener('change', () => {
   }
   const year = resolveYear(month);
   const n = daysInMonth(year, month);
+  const days = Array.from({length:n}, (_,i) => i+1)
+    .filter(d => !isBlockedDate(year, month, d));
   daySelect.innerHTML = '<option value="">선택</option>' +
-    Array.from({length:n}, (_,i) => i+1).map(d => `<option value="${d}">${d}일</option>`).join('');
+    days.map(d => `<option value="${d}">${d}일</option>`).join('');
   populateTimes();
 });
+
+function isBlockedDate(year, month, day){
+  return BLOCKED_MONTH_DAYS.some(([m,d]) => m === month && d === day);
+}
 
 daySelect.addEventListener('change', populateTimes);
 timeSelect.addEventListener('change', updateSubmitState);
@@ -348,13 +357,13 @@ function populateTimes(){
     return;
   }
 
-  // 이미 신청된 시간(시간협의필요는 제외, 관리자가 "중복 허용"으로 표시한 건은 제외하지 않음)
+  // 이미 신청된 시간(관리자가 "중복 허용"으로 표시한 건은 제외하지 않음)
   const bookedTimes = new Set(
     responses
-      .filter(r => r.date === dateStr && r.time !== NEGOTIATE_LABEL && !r.duplicateAllowed)
+      .filter(r => r.date === dateStr && !r.duplicateAllowed)
       .map(r => r.time)
   );
-  const available = FIXED_TIME_OPTIONS.filter(t => t === NEGOTIATE_LABEL || !bookedTimes.has(t));
+  const available = FIXED_TIME_OPTIONS.filter(t => !bookedTimes.has(t));
 
   timeSelect.disabled = false;
   timeSelect.innerHTML = '<option value="">선택</option>' +
