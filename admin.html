@@ -281,15 +281,86 @@
     font-size:13px; line-height:1.6; display:none;
   }
   #configNotice code{background:#fff; padding:1px 5px; border-radius:4px;}
+
+  /* 비밀번호 잠금 화면 */
+  body.locked > *:not(#lockScreen){display:none !important;}
+  #lockScreen{display:none;}
+  body.locked #lockScreen{
+    display:flex; min-height:100vh; align-items:center; justify-content:center; padding:20px;
+  }
+  .lock-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px;
+    padding:32px 28px; width:100%; max-width:340px; text-align:center;
+  }
+  .lock-card h2{font-family:'Gowun Batang', serif; font-size:20px; font-weight:400; justify-content:center; margin:0 0 6px;}
+  .lock-card p{font-size:13px; color:var(--ink-soft); margin:0 0 18px;}
+  .lock-card input{
+    width:100%; font-family:'Pretendard'; font-size:15px; padding:11px 12px;
+    border:1px solid var(--line); border-radius:8px; background:var(--bg); margin-bottom:10px;
+  }
+  .lock-card input:focus{outline:2px solid var(--green-soft); outline-offset:1px;}
+  .lock-card .btn{width:100%; padding:11px;}
+  .lock-error{color:var(--red); font-size:12px; min-height:18px; margin-top:8px;}
 </style>
 </head>
-<body>
+<body class="locked">
+
+<div id="lockScreen">
+  <form class="lock-card" id="lockForm">
+    <h2>관리자 확인</h2>
+    <p>비밀번호를 입력해야 상담 관리 화면을 볼 수 있습니다.</p>
+    <input type="password" id="lockPwInput" placeholder="비밀번호" autocomplete="current-password" autofocus>
+    <button type="submit" class="btn">들어가기</button>
+    <div class="lock-error" id="lockError"></div>
+  </form>
+</div>
+
+<script>
+// ------------------------------------------------------------------
+// 관리자 비밀번호 (코드에는 비밀번호 대신 SHA-256 해시값만 저장)
+// 비밀번호를 바꾸려면 새 비밀번호의 해시값으로 아래 값을 교체하세요.
+// ------------------------------------------------------------------
+const ADMIN_PW_HASH = 'fe778be1cdf4c23757f90292cd773870b70a42f4bdc1bf5d072e5b55ad187878';
+const LOCK_KEY = 'okyaAdminUnlocked';
+
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function unlockPage(){ document.body.classList.remove('locked'); }
+
+try{
+  if(sessionStorage.getItem(LOCK_KEY) === ADMIN_PW_HASH) unlockPage();
+}catch(e){}
+
+document.getElementById('lockForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('lockPwInput');
+  const errEl = document.getElementById('lockError');
+  const hash = await sha256Hex(input.value);
+  if(hash === ADMIN_PW_HASH){
+    try{ sessionStorage.setItem(LOCK_KEY, hash); }catch(err){}
+    errEl.textContent = '';
+    unlockPage();
+  } else {
+    errEl.textContent = '비밀번호가 올바르지 않습니다.';
+    input.value = '';
+    input.focus();
+  }
+});
+
+function lockPage(){
+  try{ sessionStorage.removeItem(LOCK_KEY); }catch(e){}
+  document.getElementById('lockPwInput').value = '';
+  document.body.classList.add('locked');
+}
+</script>
 
 <div id="configNotice"></div>
 
 <header>
   <p class="eyebrow">백데이터 · 참여자 관리</p>
-  <h1 id="titleText">학교 방문 개별 상담 관리 <button class="title-edit-btn" id="editTitleBtn">이름 수정</button></h1>
+  <h1 id="titleText">학교 방문 개별 상담 관리 <button class="title-edit-btn" id="editTitleBtn">이름 수정</button> <button class="title-edit-btn" id="lockBtn" onclick="lockPage()">잠그기</button></h1>
   <p class="sub">참여 신청 현황을 확인하고 관리합니다.</p>
 </header>
 
