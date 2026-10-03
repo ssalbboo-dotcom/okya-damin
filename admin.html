@@ -478,13 +478,20 @@ function lockPage(){
       </div>
       <div class="log-list" id="logCardList"></div>
 
-      <div class="log-add-form">
+      <div style="display:flex; justify-content:flex-end;">
+        <button class="btn btn-highlight" id="logOpenAddFormBtn">+ 상담기록추가</button>
+      </div>
+
+      <div class="log-add-form" id="logAddForm">
         <div class="row">
           <span class="next-seq" id="logNextSeqLabel">1차 상담 등록</span>
         </div>
         <div class="log-expand-grid" id="logAddGrid"></div>
         <textarea id="logNewContent" placeholder="이번 상담 내용을 입력하세요"></textarea>
-        <button class="btn" id="logAddBtn" style="align-self:flex-end;">+ 상담 기록 추가</button>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="btn ghost" id="logAddCancelBtn">취소</button>
+          <button class="btn" id="logAddBtn">저장</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1155,11 +1162,15 @@ let logModalEditingId = null;
 let logAddSeed = null;
 let logAddSeedKey = null;
 let logAddSeedName = null;
+let logAddFormOpen = false;       // '+ 상담기록추가'를 눌러 입력폼을 연 상태인지
+let logAddFormFilledFor = null;   // 입력폼을 어떤 학생·차수 기준으로 채웠는지 (입력 중 내용이 지워지지 않게)
 
 function openLogCard(key, displayName){
   openLogKey = key;
   openLogDisplayName = displayName || (key || '').split('__')[0];
   logModalEditingId = null;
+  logAddFormOpen = false;
+  logAddFormFilledFor = null;
   document.getElementById('logModalOverlay').classList.add('show');
   renderLogCardModal();
 }
@@ -1286,17 +1297,40 @@ function renderLogCardModal(){
     });
   });
 
-  // 추가 폼: 신규 학생이면 상담신청목록에서 넘어온 정보(seed)로, 아니면 최근 기록 값으로 기본 채움
-  const addGrid = document.getElementById('logAddGrid');
-  const useSeed = entries.length === 0 && logAddSeed && logAddSeedKey === openLogKey;
-  const base = useSeed ? logAddSeed : latest;
-  addGrid.innerHTML = logFormGridHtml({ ...base, date: useSeed ? (base.date||'') : '' });
-  document.getElementById('logNewContent').value = '';
+  // 입력폼 표시: 첫 상담(기록 0건)이면 바로 보이고, 기록이 있으면 '+ 상담기록추가'를 눌렀을 때만 보인다
+  const showForm = logAddFormOpen || entries.length === 0;
+  document.getElementById('logAddForm').style.display = showForm ? '' : 'none';
+  document.getElementById('logOpenAddFormBtn').parentElement.style.display = showForm ? 'none' : 'flex';
+  document.getElementById('logAddCancelBtn').style.display = entries.length === 0 ? 'none' : '';
   document.getElementById('logNextSeqLabel').textContent = `${entries.length+1}차 상담 등록`;
+
+  // 추가 폼 채우기: 신규 학생이면 상담신청목록에서 넘어온 정보(seed)로, 아니면 최근 기록 값으로.
+  // 같은 학생·같은 차수에 대해서는 한 번만 채워서, 입력 중인 내용이 지워지지 않게 한다.
+  const fillTag = `${openLogKey}#${entries.length}`;
+  if(showForm && logAddFormFilledFor !== fillTag){
+    const addGrid = document.getElementById('logAddGrid');
+    const useSeed = entries.length === 0 && logAddSeed && logAddSeedKey === openLogKey;
+    const base = useSeed ? logAddSeed : latest;
+    addGrid.innerHTML = logFormGridHtml({ ...base, date: useSeed ? (base.date||'') : '' });
+    document.getElementById('logNewContent').value = '';
+    logAddFormFilledFor = fillTag;
+  }
 }
+
+document.getElementById('logOpenAddFormBtn').addEventListener('click', () => {
+  logAddFormOpen = true;
+  renderLogCardModal();
+  document.getElementById('logNewContent').focus();
+});
+document.getElementById('logAddCancelBtn').addEventListener('click', () => {
+  logAddFormOpen = false;
+  logAddFormFilledFor = null;
+  renderLogCardModal();
+});
 
 document.getElementById('logAddBtn').addEventListener('click', async () => {
   if(!openLogKey) return;
+  const saveBtn = document.getElementById('logAddBtn');
   const content = document.getElementById('logNewContent').value.trim();
   if(!content){ alert('상담 내용을 입력해주세요.'); return; }
   const addGrid = document.getElementById('logAddGrid');
@@ -1306,8 +1340,22 @@ document.getElementById('logAddBtn').addEventListener('click', async () => {
   });
   if(!fields.date){ alert('상담 날짜를 선택해주세요.'); return; }
   fields.createdAt = serverTimestamp();
-  await addDoc(collection(db, 'counselingLogs'), fields);
+  saveBtn.disabled = true;
+  saveBtn.textContent = '저장 중...';
+  try{
+    await addDoc(collection(db, 'counselingLogs'), fields);
+  }catch(err){
+    alert('저장 중 문제가 발생했습니다: ' + err.message);
+    saveBtn.disabled = false;
+    saveBtn.textContent = '저장';
+    return;
+  }
+  saveBtn.disabled = false;
+  saveBtn.textContent = '저장';
+  logAddFormOpen = false;
+  logAddFormFilledFor = null;
   if(logAddSeedKey === openLogKey){ logAddSeed = null; logAddSeedKey = null; logAddSeedName = null; }
+  if(openLogKey) renderLogCardModal();
 });
 
 document.getElementById('logAddNewBtn').addEventListener('click', () => {
