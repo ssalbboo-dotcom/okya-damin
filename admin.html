@@ -823,24 +823,14 @@ function sendToCounselingLog(responseId){
   const name = (r.studentName ?? r.name ?? '').trim();
   if(!name){ alert('학생 이름이 없어 상담일지로 보낼 수 없습니다.'); return; }
 
-  // 같은 이름으로 이미 등록된 상담일지가 있으면, 그 학교값을 그대로 따라가서
-  // 신청서의 학교명 표기가 살짝 달라도 같은 학생의 기존 기록에 이어서 쌓이게 한다.
-  const existingSchools = [...new Set(
-    logs.filter(l => (l.name||'').trim() === name).map(l => (l.middleSchool||'').trim())
-  )];
-
-  let school;
-  if(existingSchools.length === 1){
-    school = existingSchools[0];
-  } else if(existingSchools.length > 1){
-    const pick = prompt(
-      `"${name}" 이름으로 이미 등록된 상담 기록이 여러 명(학교 기준) 있습니다. 이 학생의 학교명을 정확히 입력해 구분해주세요.\n(기존 등록: ${existingSchools.join(', ') || '(학교 미입력)'})`,
-      r.schoolName || ''
-    );
-    if(pick === null) return;
-    school = pick.trim();
-  } else {
-    school = r.schoolName || '';
+  // 이름 + 학부모 연락처로 학생을 구분 (동명이인은 연락처가 달라 섞이지 않고,
+  // 같은 학생은 학교명 표기가 달라도 연락처가 같아 기존 기록에 이어서 쌓인다)
+  const school = r.schoolName || '';
+  let key = identityKey(name, r.parentPhone, school);
+  if(!phoneDigits(r.parentPhone)){
+    // 연락처가 없는 신청서: 같은 이름·같은 학교의 기존 기록이 있으면 그 학생으로
+    const match = logs.find(l => String(l.name||'').trim() === name && normSchool(l.middleSchool) === normSchool(school));
+    if(match) key = logKeyOf(match);
   }
 
   const method = r.consultMethod || '';
@@ -857,7 +847,6 @@ function sendToCounselingLog(responseId){
     admissionWill: '',
     visitor: ''
   };
-  const key = logKeyFor(name, school);
   logAddSeedKey = key;
   logAddSeedName = name;
 
@@ -1065,20 +1054,56 @@ const LOG_WILL_OPTIONS = ['강함','상','중상','중','중하','하'];
 
 onSnapshot(collection(db, 'counselingLogs'), snap => {
   logs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  rebuildLogKeys();
   renderLogs();
   if(openLogKey) renderLogCardModal();
 });
 
-function logKeyFor(name, school){
-  return `${String(name||'').trim()}__${String(school||'').trim()}`;
+// ------------------------------------------------------------------
+// 학생 구분 규칙 (동명이인 대비)
+//  1) 연락처(보호자 우선, 없으면 학생)가 있으면 → 이름 + 연락처 숫자
+//  2) 연락처가 없으면 → 이름 + 학교
+//  3) 상담관리/상담기록추가로 저장한 기록에는 studentKey를 함께 저장해서 항상 같은 학생 카드로 모인다
+// ------------------------------------------------------------------
+function phoneDigits(v){ return String(v||'').replace(/\D/g,''); }
+function normSchool(v){ return String(v||'').replace(/\s/g,''); }
+function identityKey(name, phone, school){
+  const n = String(name||'').trim();
+  const p = phoneDigits(phone);
+  return p ? `${n}__p${p}` : `${n}__s${normSchool(school)}`;
+}
+
+// 기록마다 학생 키 계산 (연락처 없는 옛 기록은, 같은 이름·같은 학교의 연락처 있는 기록이 있으면 그쪽에 합류)
+let logKeyCache = new Map();
+function rebuildLogKeys(){
+  logKeyCache = new Map();
+  const schoolToPhoneKey = new Map(); // "이름|학교" → 연락처 기반 키
+  logs.forEach(l => {
+    const phone = l.guardianPhone || l.studentPhone;
+    if(phoneDigits(phone)){
+      const k = l.studentKey || identityKey(l.name, phone, '');
+      schoolToPhoneKey.set(`${String(l.name||'').trim()}|${normSchool(l.middleSchool)}`, k);
+    }
+  });
+  logs.forEach(l => {
+    if(l.studentKey){ logKeyCache.set(l.id, l.studentKey); return; }
+    const phone = l.guardianPhone || l.studentPhone;
+    if(phoneDigits(phone)){ logKeyCache.set(l.id, identityKey(l.name, phone, '')); return; }
+    const adopt = schoolToPhoneKey.get(`${String(l.name||'').trim()}|${normSchool(l.middleSchool)}`);
+    logKeyCache.set(l.id, adopt || identityKey(l.name, '', l.middleSchool));
+  });
+}
+function logKeyOf(l){
+  if(!logKeyCache.has(l.id)) rebuildLogKeys();
+  return logKeyCache.get(l.id);
 }
 function logCountForKey(key){
-  return logs.filter(l => logKeyFor(l.name, l.middleSchool) === key).length;
+  return logs.filter(l => logKeyOf(l) === key).length;
 }
 
 function logRowHtml(r){
   const preview = String(r.summary||'').slice(0, 40);
-  const key = logKeyFor(r.name, r.middleSchool);
+  const key = logKeyOf(r);
   return `
     <tr>
       <td>${formatDate(r.date)}</td>
@@ -1211,7 +1236,7 @@ function logFormGridHtml(entry, idPrefix){
 }
 
 function renderLogCardModal(){
-  const entries = logs.filter(l => logKeyFor(l.name, l.middleSchool) === openLogKey)
+  const entries = logs.filter(l => logKeyOf(l) === openLogKey)
     .sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
 
   const latest = entries[entries.length-1] || {};
@@ -1312,6 +1337,7 @@ function renderLogCardModal(){
       entryEl.querySelectorAll('[data-field]').forEach(el => {
         fields[el.getAttribute('data-field')] = el.value.trim();
       });
+      fields.studentKey = openLogKey;   // 수정해도 지금 학생 카드에 그대로 남도록
       await updateDoc(doc(db, 'counselingLogs', id), fields);
       logModalEditingId = null;
     });
@@ -1365,6 +1391,7 @@ document.getElementById('logAddBtn').addEventListener('click', async () => {
     fields[el.getAttribute('data-field')] = el.value.trim();
   });
   if(!fields.date){ alert('상담 날짜를 선택해주세요.'); return; }
+  fields.studentKey = openLogKey;   // 지금 열려 있는 학생 카드에 확실히 묶어둔다
   fields.createdAt = serverTimestamp();
   saveBtn.disabled = true;
   saveBtn.textContent = '저장 중...';
@@ -1387,8 +1414,16 @@ document.getElementById('logAddBtn').addEventListener('click', async () => {
 document.getElementById('logAddNewBtn').addEventListener('click', () => {
   const name = prompt('상담 기록을 추가할 학생(또는 문의자) 이름을 입력하세요');
   if(!name || !name.trim()) return;
-  const school = prompt('학교 이름을 입력하세요 (동명이인 구분용, 없으면 비워두세요)') || '';
-  openLogCard(logKeyFor(name.trim(), school.trim()), name.trim());
+  const phone = prompt('보호자 연락처를 입력하세요 (동명이인 구분용)\n모르면 비워두고, 다음 창에서 학교 이름을 입력하세요.') || '';
+  let school = '';
+  if(!phoneDigits(phone)){
+    school = prompt('학교 이름을 입력하세요 (동명이인 구분용, 없으면 비워두세요)') || '';
+  }
+  const key = identityKey(name.trim(), phone, school.trim());
+  logAddSeed = { guardianPhone: phone.trim(), middleSchool: school.trim() };
+  logAddSeedKey = key;
+  logAddSeedName = name.trim();
+  openLogCard(key, name.trim());
 });
 
 document.getElementById('logSearchNameInput').addEventListener('input', (e) => {
