@@ -157,7 +157,7 @@
     display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
   }
   .card-header h3{font-family:'Gowun Batang', serif; font-size:19px; margin:0; font-weight:400;}
-  .card-sub{font-size:12px; color:#E4EDE4; margin:6px 0 0;}
+  .card-sub{font-size:14px; color:#E4EDE4; margin:6px 0 0; line-height:1.5;}
   .card-close{
     background:rgba(255,255,255,0.15); border:none; color:#fff; width:28px; height:28px;
     border-radius:8px; font-size:14px; cursor:pointer; flex-shrink:0;
@@ -1214,9 +1214,35 @@ function renderLogCardModal(){
   const entries = logs.filter(l => logKeyFor(l.name, l.middleSchool) === openLogKey)
     .sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
 
-  document.getElementById('logCardName').textContent = openLogDisplayName || '';
   const latest = entries[entries.length-1] || {};
-  document.getElementById('logCardSub').textContent = [latest.middleSchool, latest.grade ? `${latest.grade}학년` : '', latest.counselor].filter(Boolean).join(' · ');
+
+  // 상단 학생 정보: 여러 차수 중 가장 최근에 입력된(비어 있지 않은) 값을 사용
+  const latestVal = (field) => {
+    for(let i = entries.length - 1; i >= 0; i--){
+      const v = String(entries[i][field] || '').trim();
+      if(v) return v;
+    }
+    return '';
+  };
+  if(entries.length === 0){
+    // 첫 상담 저장 전에는 기존 화면 그대로 (이름만)
+    document.getElementById('logCardName').textContent = openLogDisplayName || '';
+    document.getElementById('logCardSub').textContent = '';
+  } else {
+    const studentPhone = latestVal('studentPhone');
+    document.getElementById('logCardName').textContent =
+      (openLogDisplayName || '') + (studentPhone ? ` (${studentPhone})` : '');
+    const grade = latestVal('grade');
+    const rank = latestVal('gradeRank');
+    const will = latestVal('admissionWill');
+    document.getElementById('logCardSub').textContent = [
+      latestVal('middleSchool'),
+      grade ? (/학년$/.test(grade) ? grade : `${grade}학년`) : '',
+      rank ? `성적 ${rank}` : '',
+      will ? `입학의지 ${will}` : '',
+      latestVal('guardianPhone') ? `부모님 ${latestVal('guardianPhone')}` : ''
+    ].filter(Boolean).join(' / ');
+  }
   document.getElementById('logCardCount').textContent = `총 ${entries.length}회`;
 
   const listEl = document.getElementById('logCardList');
