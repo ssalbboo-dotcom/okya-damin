@@ -357,13 +357,15 @@ function populateTimes(){
     return;
   }
 
-  // 이미 신청된 시간(관리자가 "중복 허용"으로 표시한 건은 제외하지 않음)
-  const bookedTimes = new Set(
-    responses
-      .filter(r => r.date === dateStr && !r.duplicateAllowed)
-      .map(r => r.time)
-  );
-  const available = FIXED_TIME_OPTIONS.filter(t => !bookedTimes.has(t));
+  // 시간대별 정원: 기본 2명, 그 시간대 신청 건 중 하나라도 관리자가 "허용"을 누르면 3명.
+  // 신청 인원이 정원에 도달하면 목록에서 사라진다.
+  const BASE_CAPACITY = 2;
+  const EXTENDED_CAPACITY = 3;
+  const available = FIXED_TIME_OPTIONS.filter(t => {
+    const sameSlot = responses.filter(r => r.date === dateStr && r.time === t);
+    const capacity = sameSlot.some(r => r.duplicateAllowed) ? EXTENDED_CAPACITY : BASE_CAPACITY;
+    return sameSlot.length < capacity;
+  });
 
   timeSelect.disabled = false;
   timeSelect.innerHTML = '<option value="">선택</option>' +
