@@ -190,7 +190,7 @@
       <div class="field">
         <label class="field-label">희망 시간</label>
         <select id="timeSelect" disabled><option value="">날짜를 먼저 선택하세요</option></select>
-        <p class="hint" style="margin-top:6px;">(이미 상담이 예정되어 있는 시간은 보여지지 않습니다.)</p>
+        <p class="hint" style="margin-top:6px;">(이미 상담이 예정되어 있는 시간은 보여지지 않습니다.)<br>평일 상담은 오후 7시~8시 한 타임으로 운영하며, 상담 신청은 12월 6일까지 받습니다.</p>
       </div>
     </div>
 
@@ -248,7 +248,15 @@ const db = getFirestore(app);
 // ------------------------------------------------------------------
 // 희망 시간 고정 옵션
 // ------------------------------------------------------------------
+// 주말 상담 시간 (정원제)
 const FIXED_TIME_OPTIONS = ['오전 10시~11시','오후 1시~2시','오후 3시~4시'];
+// 평일 상담 시간 (1타임, 인원 제한 없음)
+const WEEKDAY_TIME_OPTIONS = ['오후 7시~8시'];
+
+// 신청 마감일 (12월 7일부터 원서 접수)
+const LAST_APPLY_DATE = { month: 12, day: 6 };
+// 이 날짜부터 주말 기본 정원을 3팀으로
+const WEEKEND_3TEAM_FROM = { month: 11, day: 22 };
 
 // 자체 행사로 상담이 불가능한 날짜 (월/일 기준 - 아예 날짜 선택지에서 제외)
 const BLOCKED_MONTH_DAYS = [
@@ -319,10 +327,58 @@ function currentDateStr(){
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
-// ---------- 월 / 일 드롭다운 (8월~12월만 노출) ----------
+// ---------- 신청 가능 날짜 판단 ----------
+function todayYMD(){
+  const t = new Date();
+  return { y: t.getFullYear(), m: t.getMonth()+1, d: t.getDate() };
+}
+function ymdNum(m, d){ return m*100 + d; }
+
+// 오늘 이후 ~ 12월 6일까지, 막힌 날짜 제외
+function isSelectableDate(year, month, day){
+  const t = todayYMD();
+  const n = ymdNum(month, day);
+  if(n < ymdNum(t.m, t.d)) return false;
+  if(n > ymdNum(LAST_APPLY_DATE.month, LAST_APPLY_DATE.day)) return false;
+  return !isBlockedDate(year, month, day);
+}
+function isWeekend(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dow = new Date(y, m-1, d).getDay();
+  return dow === 0 || dow === 6;
+}
+function weekendBaseCapacity(dateStr){
+  const [, m, d] = dateStr.split('-').map(Number);
+  return ymdNum(m, d) >= ymdNum(WEEKEND_3TEAM_FROM.month, WEEKEND_3TEAM_FROM.day) ? 3 : 2;
+}
+
+// 선택한 날짜에 신청 가능한 시간 목록
+function availableTimesFor(dateStr){
+  if(!isWeekend(dateStr)) return WEEKDAY_TIME_OPTIONS.slice();   // 평일: 인원 제한 없음
+  const base = weekendBaseCapacity(dateStr);
+  return FIXED_TIME_OPTIONS.filter(t => {
+    const sameSlot = responses.filter(r => r.date === dateStr && r.time === t);
+    // 관리자가 그 시간대 신청 건에 "허용"을 누를 때마다 1팀씩 더 받는다 (허용 2건이면 +2팀)
+    const capacity = base + sameSlot.filter(r => r.duplicateAllowed).length;
+    return sameSlot.length < capacity;
+  });
+}
+
+// ---------- 월 / 일 드롭다운 (오늘 ~ 12월 6일, 신청 가능한 날짜가 있는 달만) ----------
 (function populateMonths(){
-  monthSelect.innerHTML = '<option value="">선택</option>' +
-    [8,9,10,11,12].map(m => `<option value="${m}">${m}월</option>`).join('');
+  const year = new Date().getFullYear();
+  const t = todayYMD();
+  const months = [];
+  for(let m = t.m; m <= LAST_APPLY_DATE.month; m++){
+    const n = daysInMonth(year, m);
+    for(let d = 1; d <= n; d++){
+      if(isSelectableDate(year, m, d)){ months.push(m); break; }
+    }
+  }
+  monthSelect.innerHTML = months.length
+    ? '<option value="">선택</option>' + months.map(m => `<option value="${m}">${m}월</option>`).join('')
+    : '<option value="">신청 기간이 종료되었습니다</option>';
+  if(!months.length) monthSelect.disabled = true;
 })();
 
 monthSelect.addEventListener('change', () => {
@@ -335,7 +391,7 @@ monthSelect.addEventListener('change', () => {
   const year = resolveYear(month);
   const n = daysInMonth(year, month);
   const days = Array.from({length:n}, (_,i) => i+1)
-    .filter(d => !isBlockedDate(year, month, d));
+    .filter(d => isSelectableDate(year, month, d));
   daySelect.innerHTML = '<option value="">선택</option>' +
     days.map(d => `<option value="${d}">${d}일</option>`).join('');
   populateTimes();
@@ -357,15 +413,13 @@ function populateTimes(){
     return;
   }
 
-  // 시간대별 정원: 기본 2명, 그 시간대 신청 건 중 하나라도 관리자가 "허용"을 누르면 3명.
-  // 신청 인원이 정원에 도달하면 목록에서 사라진다.
-  const BASE_CAPACITY = 2;
-  const EXTENDED_CAPACITY = 3;
-  const available = FIXED_TIME_OPTIONS.filter(t => {
-    const sameSlot = responses.filter(r => r.date === dateStr && r.time === t);
-    const capacity = sameSlot.some(r => r.duplicateAllowed) ? EXTENDED_CAPACITY : BASE_CAPACITY;
-    return sameSlot.length < capacity;
-  });
+  const available = availableTimesFor(dateStr);
+  if(available.length === 0){
+    timeSelect.disabled = true;
+    timeSelect.innerHTML = '<option value="">이 날짜는 신청이 마감되었습니다</option>';
+    updateSubmitState();
+    return;
+  }
 
   timeSelect.disabled = false;
   timeSelect.innerHTML = '<option value="">선택</option>' +
@@ -382,6 +436,14 @@ submitBtn.addEventListener('click', async () => {
   const dateStr = currentDateStr();
   const time = timeSelect.value;
   if(!dateStr || !time) return;
+
+  // 페이지를 오래 열어둔 경우를 대비해 신청 직전에 한 번 더 확인
+  const [, cm, cd] = dateStr.split('-').map(Number);
+  if(!isSelectableDate(Number(dateStr.slice(0,4)), cm, cd) || !availableTimesFor(dateStr).includes(time)){
+    alert('선택하신 날짜·시간은 마감되었거나 신청할 수 없습니다. 다른 날짜·시간을 선택해주세요.');
+    populateTimes();
+    return;
+  }
 
   const payload = {
     studentName: document.getElementById('studentNameInput').value.trim(),
