@@ -46,7 +46,7 @@
   .stats{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);margin-bottom:14px;}
   .stats b{font-family:'IBM Plex Mono',monospace;color:var(--ink);}
   .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  table.list{width:100%;min-width:1380px;border-collapse:collapse;font-size:13px;}
+  table.list{width:100%;min-width:1500px;border-collapse:collapse;font-size:13px;}
   table.list th{text-align:left;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:11px;color:var(--ink-soft);letter-spacing:.03em;border-bottom:1px solid var(--line);padding:6px 6px;white-space:nowrap;}
   table.list td{padding:9px 6px;border-bottom:1px dashed var(--line);vertical-align:middle;white-space:nowrap;}
   table.list tbody tr{cursor:pointer;}
@@ -63,6 +63,9 @@
   .decstat .v div{display:flex;flex-direction:column;}
   .decstat .v span{font-size:11px;color:var(--ink-soft);}
   .decstat .v b{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--ink);}
+  .update-in{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);}
+  .logitem .lact{margin-left:auto;display:flex;gap:6px;}
+  .logitem.editing{border-color:var(--green-soft);background:var(--bg);display:flex;flex-direction:column;gap:10px;}
   .range{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--ink-soft);}
   .range input{width:72px;font-family:'IBM Plex Mono',monospace !important;}
   .total{font-weight:600;}
@@ -200,7 +203,7 @@
         <option value="">확정여부 전체</option><option>확정</option><option>고민중</option><option>기다림</option><option value="none">미선택</option>
       </select>
       <select id="sortSel">
-        <option value="total">전형총점 높은 순</option><option value="recent">최근 입력 순</option><option value="name">이름 순</option>
+        <option value="total">전형총점 높은 순</option><option value="upload">업로드날짜 순</option><option value="recent">최근 입력 순</option><option value="name">이름 순</option>
       </select>
       <input type="text" id="searchInput" placeholder="이름 · 중학교 검색">
     </div>
@@ -256,6 +259,9 @@
         <select id="fType"><option value="일반">중학교 졸업(예정)</option><option value="검정고시">검정고시</option></select></div>
       <div class="field"><label for="fDecision">확정여부</label>
         <select id="fDecision"><option value="">선택</option><option>확정</option><option>고민중</option><option>기다림</option></select></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label for="fUpload">업로드날짜</label><input id="fUpload" type="date"></div>
     </div>
 
     <p class="sec-title">성적</p>
@@ -365,6 +371,7 @@ let view = 'all', search = '', decFilter = '', sortMode = 'total';
 let genderF = '', regionF = '', pctMin = null, pctMax = null, totMin = null, totMax = null;
 let editing = null;       // {id|null, d}
 let openCounsel = null;   // 상담기록 창에 열린 학생 id
+let editLogId = null;     // 상담기록 창에서 수정 중인 상담 id
 
 const $ = s => document.querySelector(s);
 const r2 = n => Math.round(n*100)/100;
@@ -476,6 +483,7 @@ function sortedList(){
   const ms = d => d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now();
   if(sortMode==='name') list.sort((a,b) => String(a.d.name||'').localeCompare(String(b.d.name||''),'ko'));
   else if(sortMode==='recent') list.sort((a,b) => ms(b.d)-ms(a.d));
+  else if(sortMode==='upload') list.sort((a,b) => String(a.d.uploadDate||'9999').localeCompare(String(b.d.uploadDate||'9999')) || ms(a.d)-ms(b.d));
   else list.sort((a,b) => (b.c.total??-1)-(a.c.total??-1) || (b.d.kyo??-1)-(a.d.kyo??-1) || (b.d.chul??-1)-(a.d.chul??-1) || (b.d.hwal??-1)-(a.d.hwal??-1) || String(a.d.name||'').localeCompare(String(b.d.name||''),'ko'));
   return list;
 }
@@ -519,7 +527,7 @@ function render(){
     return;
   }
   $('#listWrap').innerHTML = `<div class="table-scroll"><table class="list">
-    <thead><tr><th style="text-align:center">순번</th><th>이름</th><th>성별</th><th>중학교</th><th>지역</th><th>학생 연락처</th><th>학부모 연락처</th>
+    <thead><tr><th style="text-align:center">순번</th><th>업로드날짜</th><th>이름</th><th>성별</th><th>중학교</th><th>지역</th><th>학생 연락처</th><th>학부모 연락처</th>
       <th class="num">석차백분위</th><th class="num">백분위총점</th><th class="num">지정과목</th><th class="num">전형총점</th>
       <th>확정여부</th><th>상태</th><th>상담기록</th></tr></thead>
     <tbody>${list.map(({d,c},i) => {
@@ -530,6 +538,7 @@ function render(){
       const n = logsOf(d).length;
       return `<tr data-id="${d.id}">
         <td class="num" style="text-align:center">${i+1}</td>
+        <td><input type="date" class="update-in" data-up="${d.id}" value="${esc(d.uploadDate||'')}" aria-label="업로드날짜"></td>
         <td><b>${esc(d.name)}</b>${d.track==='지역'?' <span class="pill gray">지역전형</span>':''}${d.type==='검정고시'?' <span class="pill gray">검정</span>':''}</td>
         <td>${esc(d.gender)||'—'}</td><td>${esc(d.school)||'—'}</td><td>${esc(d.region)||'—'}</td>
         <td class="mono" style="font-size:12px">${esc(d.studentPhone)||'—'}</td><td class="mono" style="font-size:12px">${esc(d.guardianPhone)||'—'}</td>
@@ -540,10 +549,14 @@ function render(){
         <td><button class="btn ghost small" data-counsel="${d.id}">보기${n?` (${n})`:''}</button></td></tr>`;
     }).join('')}</tbody></table></div>`;
   $('#listWrap').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => {
-    if(e.target.closest('select,button')) return;
+    if(e.target.closest('select,button,input')) return;
     openEditor(tr.dataset.id);
   });
   $('#listWrap').querySelectorAll('[data-dec]').forEach(sel => sel.onchange = () => setDecision(sel.dataset.dec, sel.value));
+  $('#listWrap').querySelectorAll('[data-up]').forEach(inp => inp.onchange = async () => {
+    try{ await updateDoc(doc(db, SCORES, inp.dataset.up), { uploadDate: inp.value, updatedAt: serverTimestamp() }); }
+    catch(err){ alert('업로드날짜를 저장하지 못했습니다: ' + err.message); }
+  });
   $('#listWrap').querySelectorAll('[data-counsel]').forEach(b => b.onclick = () => openCounselModal(b.dataset.counsel));
 }
 async function setDecision(id, v){
@@ -556,13 +569,13 @@ function openEditor(id){
   const src = id ? scores.find(d => d.id===id) : null;
   const d = src ? JSON.parse(JSON.stringify({...src, createdAt:null, updatedAt:null}))
                 : { name:'', gender:'', school:'', region:'', studentPhone:'', guardianPhone:'', track:'일반', type:'일반', decision:'',
-                    pct:null, kyo:null, chul:null, hwal:null, grades:blankGrades(), free:blankFree(), memo:'', checked:false, logKey:null, importAsked:false };
+                    pct:null, kyo:null, chul:null, hwal:null, grades:blankGrades(), free:blankFree(), memo:'', checked:false, logKey:null, importAsked:false, uploadDate: today() };
   d.grades = d.grades || blankGrades(); d.free = d.free || blankFree();
   editing = { id: id||null, d };
   $('#dTitle').textContent = id ? `${d.name} 성적` : '학생 성적 입력';
   $('#fName').value = d.name||''; $('#fGender').value = d.gender||''; $('#fSchool').value = d.school||''; $('#fRegion').value = d.region||'';
   $('#fStuPhone').value = d.studentPhone||''; $('#fParPhone').value = d.guardianPhone||'';
-  $('#fTrack').value = d.track||'일반'; $('#fType').value = d.type||'일반'; $('#fDecision').value = d.decision||'';
+  $('#fTrack').value = d.track||'일반'; $('#fType').value = d.type||'일반'; $('#fDecision').value = d.decision||''; $('#fUpload').value = d.uploadDate||'';
   $('#fPct').value = d.pct ?? ''; $('#fKyo').value = d.kyo ?? ''; $('#fChul').value = d.chul ?? ''; $('#fHwal').value = d.hwal ?? '';
   $('#fMemo').value = d.memo||''; $('#fChecked').checked = !!d.checked; $('#fQuick').value = quickString(d);
   $('#delBtn').hidden = !id;
@@ -575,7 +588,7 @@ function readForm(){
   const d = editing.d;
   d.name = $('#fName').value.trim(); d.gender = $('#fGender').value; d.school = $('#fSchool').value.trim(); d.region = $('#fRegion').value.trim();
   d.studentPhone = $('#fStuPhone').value.trim(); d.guardianPhone = $('#fParPhone').value.trim();
-  d.track = $('#fTrack').value; d.type = $('#fType').value; d.decision = $('#fDecision').value;
+  d.track = $('#fTrack').value; d.type = $('#fType').value; d.decision = $('#fDecision').value; d.uploadDate = $('#fUpload').value;
   d.pct = numOrNull($('#fPct').value); d.kyo = numOrNull($('#fKyo').value);
   d.chul = numOrNull($('#fChul').value); d.hwal = numOrNull($('#fHwal').value);
   d.memo = $('#fMemo').value.trim(); d.checked = $('#fChecked').checked;
@@ -678,7 +691,7 @@ async function save(){
   const dup = scores.find(x => x.id!==editing.id && x.name===d.name && normSchool(x.school)===normSchool(d.school));
   if(dup && !confirm(`${d.name}(${d.school||'학교 미기재'}) 학생이 이미 있어요. 그래도 따로 저장할까요?`)) return;
   const payload = { name:d.name, gender:d.gender, school:d.school, region:d.region, studentPhone:d.studentPhone, guardianPhone:d.guardianPhone,
-    track:d.track, type:d.type, decision:d.decision, pct:d.pct, kyo:d.kyo, chul:d.chul, hwal:d.hwal,
+    track:d.track, type:d.type, decision:d.decision, uploadDate:d.uploadDate||'', pct:d.pct, kyo:d.kyo, chul:d.chul, hwal:d.hwal,
     grades:d.grades, free:d.free, memo:d.memo, checked:d.checked,
     logKey: d.logKey || null, importedFrom: d.importedFrom || null, importAsked: !!d.importAsked,
     updatedAt: serverTimestamp() };
@@ -705,8 +718,8 @@ $('#fQuick').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDe
 $('#addBtn').onclick = () => openEditor(null);
 
 // ---------- 상담기록 창 ----------
-function openCounselModal(id){ openCounsel = id; drawCounsel(true); $('#cScrim').hidden = false; $('#cModal').hidden = false; }
-function closeCounsel(){ openCounsel = null; $('#cScrim').hidden = true; $('#cModal').hidden = true; }
+function openCounselModal(id){ openCounsel = id; editLogId = null; drawCounsel(true); $('#cScrim').hidden = false; $('#cModal').hidden = false; }
+function closeCounsel(){ openCounsel = null; editLogId = null; $('#cScrim').hidden = true; $('#cModal').hidden = true; }
 $('#cScrim').onclick = closeCounsel;
 function drawCounsel(resetForm){
   const d = scores.find(x => x.id===openCounsel);
@@ -715,7 +728,11 @@ function drawCounsel(resetForm){
   const m = $('#cModal');
   // 입력 중인 새 상담 내용은 다시 그려도 유지
   const keep = {};
-  if(!resetForm) m.querySelectorAll('[data-nl]').forEach(el => keep[el.dataset.nl] = el.value);
+  const keepEdit = {};
+  if(!resetForm){
+    m.querySelectorAll('[data-nl]').forEach(el => keep[el.dataset.nl] = el.value);
+    m.querySelectorAll('[data-el]').forEach(el => keepEdit[el.dataset.el] = el.value);
+  }
   const last = L[L.length-1] || {};
   const val = (k, def) => keep[k] ?? def;
   const opt = (arr, v) => '<option value="">선택</option>' + arr.map(x => `<option ${v===x?'selected':''}>${x}</option>`).join('');
@@ -736,8 +753,22 @@ function drawCounsel(resetForm){
 
       <div>
         <p class="sec-title" style="margin-bottom:8px">상담 기록 ${L.length}건</p>
-        <div class="loglist">${L.length ? L.map((l,i) => `<div class="logitem">
-          <div class="lh"><b>${i+1}차</b> ${esc(l.date||'')} · ${esc(l.consultType||'')} · 상담자 ${esc(l.counselor||'—')}${l.visitor?` · 내담자 ${esc(l.visitor)}`:''}${l.admissionWill?` <span class="pill gray">입학의지 ${esc(l.admissionWill)}</span>`:''}</div>
+        <div class="loglist">${L.length ? L.map((l,i) => l.id===editLogId ? `<div class="logitem editing">
+          <div class="lh"><b>${i+1}차 수정 중</b></div>
+          <div class="grid3">
+            <div class="field"><label>상담유형</label><select data-el="consultType">${opt(LOG_TYPE, keepEdit.consultType ?? l.consultType ?? '')}</select></div>
+            <div class="field"><label>상담날짜</label><input type="date" data-el="date" value="${esc(keepEdit.date ?? l.date ?? '')}"></div>
+            <div class="field"><label>입학의지</label><select data-el="admissionWill">${opt(LOG_WILL, keepEdit.admissionWill ?? l.admissionWill ?? '')}</select></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>내담자</label><input type="text" data-el="visitor" value="${esc(keepEdit.visitor ?? l.visitor ?? '')}"></div>
+            <div class="field"><label>상담자</label><input type="text" data-el="counselor" value="${esc(keepEdit.counselor ?? l.counselor ?? '')}"></div>
+          </div>
+          <div class="field"><label>상담 내용</label><textarea data-el="summary" style="min-height:90px">${esc(keepEdit.summary ?? l.summary ?? '')}</textarea></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn ghost small" data-lcancel>취소</button><button class="btn small" data-lsave="${l.id}">수정 저장</button></div>
+        </div>` : `<div class="logitem">
+          <div class="lh"><b>${i+1}차</b> ${esc(l.date||'')} · ${esc(l.consultType||'')} · 상담자 ${esc(l.counselor||'—')}${l.visitor?` · 내담자 ${esc(l.visitor)}`:''}${l.admissionWill?` <span class="pill gray">입학의지 ${esc(l.admissionWill)}</span>`:''}
+            <span class="lact"><button class="btn ghost small" data-ledit="${l.id}">수정</button><button class="btn danger small" data-ldel="${l.id}">삭제</button></span></div>
           <p>${esc(l.summary||'')}</p></div>`).join('') : '<p class="hint">아직 상담 기록이 없습니다.</p>'}</div>
       </div>
 
@@ -759,6 +790,25 @@ function drawCounsel(resetForm){
   $('#cClose').onclick = closeCounsel;
   m.querySelector('[data-dec]').onchange = e => setDecision(d.id, e.target.value);
   $('#nlSave').onclick = () => saveLog(d);
+  m.querySelectorAll('[data-ledit]').forEach(b => b.onclick = () => { editLogId = b.dataset.ledit; drawCounsel(false); });
+  m.querySelectorAll('[data-lcancel]').forEach(b => b.onclick = () => { editLogId = null; drawCounsel(false); });
+  m.querySelectorAll('[data-lsave]').forEach(b => b.onclick = async () => {
+    const f = {};
+    m.querySelectorAll('[data-el]').forEach(el => f[el.dataset.el] = el.value.trim());
+    if(!f.summary){ alert('상담 내용을 입력해주세요.'); return; }
+    if(!f.date){ alert('상담 날짜를 선택해주세요.'); return; }
+    b.disabled = true; b.textContent = '저장 중...';
+    try{
+      await updateDoc(doc(db, LOGS, b.dataset.lsave), f);
+      editLogId = null; drawCounsel(false);
+    }catch(err){ alert('수정하지 못했습니다: ' + err.message); b.disabled = false; b.textContent = '수정 저장'; }
+  });
+  m.querySelectorAll('[data-ldel]').forEach(b => b.onclick = async () => {
+    const l = logs.find(x => x.id===b.dataset.ldel);
+    if(!confirm(`${l?.date||''} 상담 기록을 삭제할까요? 상담일지관리에서도 함께 지워집니다.`)) return;
+    try{ await deleteDoc(doc(db, LOGS, b.dataset.ldel)); }
+    catch(err){ alert('삭제하지 못했습니다: ' + err.message); }
+  });
 }
 async function saveLog(d){
   const m = $('#cModal'), f = {};
@@ -814,7 +864,7 @@ $('#exportBtn').onclick = () => {
   if(!list.length){ alert('내보낼 성적이 없습니다.'); return; }
   const rows = list.map(({d,c},i) => {
     const eg = effGrades(d);
-    const o = { '순번':i+1, '이름':d.name, '성별':d.gender||'', '중학교':d.school||'', '지역':d.region||'',
+    const o = { '순번':i+1, '업로드날짜':d.uploadDate||'', '이름':d.name, '성별':d.gender||'', '중학교':d.school||'', '지역':d.region||'',
       '학생 연락처':d.studentPhone||'', '학부모 연락처':d.guardianPhone||'',
       '석차백분위':d.pct??'', '백분위총점':c.naesin??'', '지정과목':c.desig??'', '전형총점':c.total??'',
       '확정여부':d.decision||'', '상태':d.checked?'검토 완료':'미검토', '상담 횟수':logsOf(d).length||'',
