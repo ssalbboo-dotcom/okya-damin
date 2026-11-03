@@ -54,6 +54,15 @@
   table.list tr.cut td{border-bottom:2px solid var(--green);}
   .num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:center;}
   table.list th.num{text-align:center;}
+  .toprow{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px;}
+  .toprow .filters{flex:1;min-width:0;}
+  .toprow .filters .filter-row:last-child{margin-bottom:0;}
+  .decstat{border:1px solid #B9D3BD;background:var(--green-tint);border-radius:9px;padding:10px 14px;min-width:240px;}
+  .decstat .t{font-size:12px;font-weight:700;color:var(--green);margin:0 0 6px;}
+  .decstat .v{display:flex;gap:18px;}
+  .decstat .v div{display:flex;flex-direction:column;}
+  .decstat .v span{font-size:11px;color:var(--ink-soft);}
+  .decstat .v b{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--ink);}
   .range{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--ink-soft);}
   .range input{width:72px;font-family:'IBM Plex Mono',monospace !important;}
   .total{font-weight:600;}
@@ -182,6 +191,7 @@
         <button class="btn ghost small" id="exportBtn">엑셀 내보내기</button>
       </div>
     </div>
+    <div class="toprow"><div class="filters">
     <div class="filter-row">
       <div class="seg" id="trackSeg">
         <button data-v="all" class="on">전체</button><button data-v="일반">일반전형</button><button data-v="지역">지역전형</button>
@@ -202,6 +212,14 @@
       <button class="btn ghost small" id="resetFilter">검색 초기화</button>
       <span class="hint" id="filterCount"></span>
     </div>
+    </div>
+    <div class="decstat" aria-live="polite">
+      <p class="t">확정된 학생의 석차백분위 <span id="decN" style="font-weight:500;color:var(--ink-soft)"></span></p>
+      <div class="v">
+        <div><span>평균</span><b id="decAvg">—</b></div>
+        <div><span>최저점 (가장 큰 백분위)</span><b id="decMin">—</b></div>
+      </div>
+    </div></div>
     <div class="stats" id="stats"></div>
     <div id="listWrap"><p class="empty">불러오는 중...</p></div>
     <p class="hint" style="margin-top:12px;">학생 줄을 누르면 성적을 고칠 수 있어요. 확정여부는 표에서 바로 바꿀 수 있고, 상담기록 ‘보기’에서 새 상담을 쓰면 상담일지관리에도 함께 저장됩니다. 전형총점 순 정렬에서 동점이면 교과 → 출결 → 학교활동 점수 순입니다.</p>
@@ -474,7 +492,15 @@ function fillRegions(){
   sel.value = (cur==='__none' && hasEmpty) || regions.includes(cur) ? cur : '';
   regionF = sel.value;
 }
+function renderDecStat(){
+  const P = scores.filter(d => d.decision==='확정' && d.pct!=null).map(d => Number(d.pct));
+  const n = scores.filter(d => d.decision==='확정').length;
+  $('#decN').textContent = n ? `(${n}명${P.length<n?`, 백분위 입력 ${P.length}명`:''})` : '(아직 없음)';
+  $('#decAvg').textContent = P.length ? fmt(P.reduce((a,b)=>a+b,0)/P.length) + '%' : '—';
+  $('#decMin').textContent = P.length ? fmt(Math.max(...P)) + '%' : '—';
+}
 function render(){
+  renderDecStat();
   fillRegions();
   const list = sortedList();
   const filtered = list.length !== scores.length;
