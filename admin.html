@@ -307,61 +307,24 @@
 
 <div id="lockScreen">
   <form class="lock-card" id="lockForm">
-    <h2>관리자 확인</h2>
-    <p>비밀번호를 입력해야 상담 관리 화면을 볼 수 있습니다.</p>
-    <input type="password" id="lockPwInput" placeholder="비밀번호" autocomplete="current-password" autofocus>
-    <button type="submit" class="btn">들어가기</button>
+    <h2>관리자 로그인</h2>
+    <p>담당 선생님 계정으로 로그인해야 상담 관리 화면을 볼 수 있습니다.</p>
+    <input type="email" id="loginEmail" placeholder="이메일" autocomplete="username" autofocus>
+    <input type="password" id="lockPwInput" placeholder="비밀번호" autocomplete="current-password">
+    <button type="submit" class="btn" id="loginBtn">로그인</button>
     <div class="lock-error" id="lockError"></div>
   </form>
 </div>
 
-<script>
-// ------------------------------------------------------------------
-// 관리자 비밀번호 (코드에는 비밀번호 대신 SHA-256 해시값만 저장)
-// 비밀번호를 바꾸려면 새 비밀번호의 해시값으로 아래 값을 교체하세요.
-// ------------------------------------------------------------------
-const ADMIN_PW_HASH = 'fe778be1cdf4c23757f90292cd773870b70a42f4bdc1bf5d072e5b55ad187878';
-const LOCK_KEY = 'okyaAdminUnlocked';
 
-async function sha256Hex(text){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
-}
-function unlockPage(){ document.body.classList.remove('locked'); }
-
-try{
-  if(sessionStorage.getItem(LOCK_KEY) === ADMIN_PW_HASH) unlockPage();
-}catch(e){}
-
-document.getElementById('lockForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const input = document.getElementById('lockPwInput');
-  const errEl = document.getElementById('lockError');
-  const hash = await sha256Hex(input.value);
-  if(hash === ADMIN_PW_HASH){
-    try{ sessionStorage.setItem(LOCK_KEY, hash); }catch(err){}
-    errEl.textContent = '';
-    unlockPage();
-  } else {
-    errEl.textContent = '비밀번호가 올바르지 않습니다.';
-    input.value = '';
-    input.focus();
-  }
-});
-
-function lockPage(){
-  try{ sessionStorage.removeItem(LOCK_KEY); }catch(e){}
-  document.getElementById('lockPwInput').value = '';
-  document.body.classList.add('locked');
-}
-</script>
 
 <div id="configNotice"></div>
 
 <header>
   <p class="eyebrow">백데이터 · 참여자 관리</p>
-  <h1 id="titleText">학교 방문 개별 상담 관리 <button class="title-edit-btn" id="editTitleBtn">이름 수정</button> <button class="title-edit-btn" id="lockBtn" onclick="lockPage()">잠그기</button></h1>
+  <h1 id="titleText">학교 방문 개별 상담 관리 <button class="title-edit-btn" id="editTitleBtn">이름 수정</button> <button class="title-edit-btn" id="lockBtn" onclick="lockPage()">로그아웃</button></h1>
   <p class="sub">참여 신청 현황을 확인하고 관리합니다.</p>
+  <p style="margin:12px 0 0;"><a class="btn ghost small" href="scores.html" style="text-decoration:none;">신입생 성적 관리 →</a></p>
 </header>
 
 <main>
@@ -514,6 +477,7 @@ function lockPage(){
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, setDoc, getDoc
@@ -543,6 +507,37 @@ if(!isConfigured){
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// ------------------------------------------------------------------
+// 로그인 (Firebase Authentication · 이메일/비밀번호)
+// 계정은 Firebase 콘솔 > Authentication > 사용자 에서 추가합니다.
+// 로그인하기 전에는 데이터를 하나도 불러오지 않습니다.
+// ------------------------------------------------------------------
+const auth = getAuth(app);
+const LOGIN_ERR = {
+  'auth/invalid-credential':'이메일 또는 비밀번호가 올바르지 않습니다.',
+  'auth/invalid-email':'이메일 형식을 확인하세요.',
+  'auth/too-many-requests':'시도가 너무 많습니다. 잠시 후 다시 시도하세요.',
+  'auth/network-request-failed':'인터넷 연결을 확인하세요.'
+};
+document.getElementById('lockForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('lockError');
+  const btn = document.getElementById('loginBtn');
+  errEl.textContent = ''; btn.disabled = true; btn.textContent = '로그인 중...';
+  try{
+    await signInWithEmailAndPassword(auth, document.getElementById('loginEmail').value.trim(), document.getElementById('lockPwInput').value);
+  }catch(err){
+    errEl.textContent = LOGIN_ERR[err.code] || ('로그인하지 못했습니다. (' + err.code + ')');
+    document.getElementById('lockPwInput').value = '';
+  }
+  btn.disabled = false; btn.textContent = '로그인';
+});
+window.lockPage = async () => { await signOut(auth); location.reload(); };
+await new Promise(resolve => onAuthStateChanged(auth, user => {
+  if(user){ document.body.classList.remove('locked'); resolve(); }
+  else document.body.classList.add('locked');
+}));
 
 let responses = [];
 let editingId = null;
@@ -584,7 +579,47 @@ onSnapshot(collection(db, 'responses'), snap => {
   responses = snap.docs.map(d => ({ id:d.id, ...d.data() }));
   renderResponses();
   renderCalendar();
+  syncSlotCounts();
 });
+
+// ------------------------------------------------------------------
+// 시간대별 신청 수 (slotCounts)
+// 학부모 신청서(survey.html)는 개인정보가 담긴 신청 목록을 볼 수 없으므로,
+// 이름·연락처 없이 "날짜·시간·신청 수·추가 허용 수"만 담은 목록으로 마감 여부를 판단합니다.
+// 관리 화면이 열려 있으면 신청 삭제·시간 변경·중복 허용이 이 목록에 자동으로 반영됩니다.
+// ------------------------------------------------------------------
+let slotCounts = new Map();
+let slotCountsLoaded = false, syncing = false, syncAgain = false;
+onSnapshot(collection(db, 'slotCounts'), snap => {
+  slotCounts = new Map(snap.docs.map(d => [d.id, d.data()]));
+  slotCountsLoaded = true;
+  syncSlotCounts();
+}, () => {});
+const slotId = (date, time) => `${date}_${time}`;
+async function syncSlotCounts(){
+  if(!slotCountsLoaded) return;
+  if(syncing){ syncAgain = true; return; }
+  syncing = true;
+  try{
+    const want = new Map();
+    responses.forEach(r => {
+      if(!r.date || !r.time) return;
+      const id = slotId(r.date, r.time);
+      const w = want.get(id) || { date:r.date, time:r.time, count:0, extra:0 };
+      w.count++; if(r.duplicateAllowed) w.extra++;
+      want.set(id, w);
+    });
+    for(const [id, w] of want){
+      const cur = slotCounts.get(id);
+      if(!cur || cur.count !== w.count || (cur.extra||0) !== w.extra) await setDoc(doc(db, 'slotCounts', id), w);
+    }
+    for(const id of slotCounts.keys()){
+      if(!want.has(id)) await deleteDoc(doc(db, 'slotCounts', id));
+    }
+  }catch(err){ console.warn('slotCounts 정리 실패', err); }
+  syncing = false;
+  if(syncAgain){ syncAgain = false; syncSlotCounts(); }
+}
 
 function selectHtml(field, current, opts){
   return `<select class="cell-select" data-field="${field}">` +
