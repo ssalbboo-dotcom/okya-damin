@@ -52,7 +52,10 @@
   table.list tbody tr{cursor:pointer;}
   table.list tbody tr:hover{background:var(--green-tint);}
   table.list tr.cut td{border-bottom:2px solid var(--green);}
-  .num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:right;}
+  .num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:center;}
+  table.list th.num{text-align:center;}
+  .range{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--ink-soft);}
+  .range input{width:72px;font-family:'IBM Plex Mono',monospace !important;}
   .total{font-weight:600;}
   .pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;font-weight:600;margin-right:3px;}
   .pill.pass{background:var(--green-tint);color:var(--green);}
@@ -190,6 +193,14 @@
         <option value="total">전형총점 높은 순</option><option value="recent">최근 입력 순</option><option value="name">이름 순</option>
       </select>
       <input type="text" id="searchInput" placeholder="이름 · 중학교 검색">
+    </div>
+    <div class="filter-row">
+      <select id="genderFilter"><option value="">성별 전체</option><option>남</option><option>여</option></select>
+      <select id="regionFilter"><option value="">지역 전체</option></select>
+      <span class="range">석차백분위 <input type="number" id="pctMin" step="0.01" min="0" max="100" placeholder="0"> ~ <input type="number" id="pctMax" step="0.01" min="0" max="100" placeholder="100"> %</span>
+      <span class="range">전형총점 <input type="number" id="totMin" step="0.01" min="0" max="400" placeholder="0"> ~ <input type="number" id="totMax" step="0.01" min="0" max="400" placeholder="400"></span>
+      <button class="btn ghost small" id="resetFilter">검색 초기화</button>
+      <span class="hint" id="filterCount"></span>
     </div>
     <div class="stats" id="stats"></div>
     <div id="listWrap"><p class="empty">불러오는 중...</p></div>
@@ -333,6 +344,7 @@ const LOG_WILL = ['강함','상','중상','중','중하','하'];
 
 let scores = [], responses = [], logs = [];
 let view = 'all', search = '', decFilter = '', sortMode = 'total';
+let genderF = '', regionF = '', pctMin = null, pctMax = null, totMin = null, totMax = null;
 let editing = null;       // {id|null, d}
 let openCounsel = null;   // 상담기록 창에 열린 학생 id
 
@@ -437,6 +449,12 @@ function sortedList(){
   let list = items.filter(x => view==='all' || x.d.track===view);
   if(decFilter) list = list.filter(x => decFilter==='none' ? !x.d.decision : x.d.decision===decFilter);
   if(search) list = list.filter(x => (x.d.name||'').includes(search) || (x.d.school||'').includes(search));
+  if(genderF) list = list.filter(x => x.d.gender===genderF);
+  if(regionF) list = list.filter(x => regionF==='__none' ? !String(x.d.region||'').trim() : String(x.d.region||'').trim()===regionF);
+  if(pctMin!=null) list = list.filter(x => x.d.pct!=null && x.d.pct >= pctMin);
+  if(pctMax!=null) list = list.filter(x => x.d.pct!=null && x.d.pct <= pctMax);
+  if(totMin!=null) list = list.filter(x => x.c.total!=null && x.c.total >= totMin);
+  if(totMax!=null) list = list.filter(x => x.c.total!=null && x.c.total <= totMax);
   const ms = d => d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now();
   if(sortMode==='name') list.sort((a,b) => String(a.d.name||'').localeCompare(String(b.d.name||''),'ko'));
   else if(sortMode==='recent') list.sort((a,b) => ms(b.d)-ms(a.d));
@@ -446,8 +464,21 @@ function sortedList(){
 function decSelect(id, v){
   return `<select class="dec ${v?'v-'+v:''}" data-dec="${id}" aria-label="확정여부"><option value="">선택</option>${DECISIONS.map(x => `<option ${v===x?'selected':''}>${x}</option>`).join('')}</select>`;
 }
+function fillRegions(){
+  const sel = $('#regionFilter');
+  const regions = [...new Set(scores.map(d => String(d.region||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+  const hasEmpty = scores.some(d => !String(d.region||'').trim());
+  const cur = regionF;
+  sel.innerHTML = '<option value="">지역 전체</option>' + regions.map(r => `<option value="${esc(r)}">${esc(r)} (${scores.filter(d=>String(d.region||'').trim()===r).length})</option>`).join('')
+    + (hasEmpty ? '<option value="__none">지역 미기재</option>' : '');
+  sel.value = (cur==='__none' && hasEmpty) || regions.includes(cur) ? cur : '';
+  regionF = sel.value;
+}
 function render(){
+  fillRegions();
   const list = sortedList();
+  const filtered = list.length !== scores.length;
+  $('#filterCount').textContent = filtered && scores.length ? `${scores.length}명 중 ${list.length}명 표시` : '';
   const cnt = t => scores.filter(d => d.track===t).length;
   const dc = v => scores.filter(d => d.decision===v).length;
   $('#stats').innerHTML = `
@@ -739,6 +770,17 @@ document.querySelectorAll('#trackSeg button').forEach(b => b.onclick = () => {
 $('#searchInput').addEventListener('input', e => { search = e.target.value.trim(); render(); });
 $('#decFilter').addEventListener('change', e => { decFilter = e.target.value; render(); });
 $('#sortSel').addEventListener('change', e => { sortMode = e.target.value; render(); });
+$('#genderFilter').addEventListener('change', e => { genderF = e.target.value; render(); });
+$('#regionFilter').addEventListener('change', e => { regionF = e.target.value; render(); });
+[['#pctMin',v=>pctMin=v],['#pctMax',v=>pctMax=v],['#totMin',v=>totMin=v],['#totMax',v=>totMax=v]].forEach(([sel,set]) =>
+  $(sel).addEventListener('input', e => { set(numOrNull(e.target.value)); render(); }));
+$('#resetFilter').onclick = () => {
+  search = ''; decFilter = ''; genderF = ''; regionF = ''; pctMin = pctMax = totMin = totMax = null; view = 'all';
+  ['#searchInput','#pctMin','#pctMax','#totMin','#totMax'].forEach(x => $(x).value = '');
+  $('#decFilter').value = ''; $('#genderFilter').value = '';
+  document.querySelectorAll('#trackSeg button').forEach(x => x.classList.toggle('on', x.dataset.v==='all'));
+  render();
+};
 
 // ---------- 엑셀 내보내기 ----------
 $('#exportBtn').onclick = () => {
