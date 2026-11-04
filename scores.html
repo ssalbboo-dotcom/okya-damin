@@ -66,6 +66,10 @@
   .update-in{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);}
   .logitem .lact{margin-left:auto;display:flex;gap:6px;}
   .logitem.editing{border-color:var(--green-soft);background:var(--bg);display:flex;flex-direction:column;gap:10px;}
+  .photo-link{font-size:11px;font-weight:600;color:var(--blue);background:var(--blue-tint);border-radius:999px;padding:2px 8px;text-decoration:none;margin-left:4px;white-space:nowrap;}
+  .photo-link:hover{text-decoration:underline;}
+  .photos-box{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;}
+  #importMsg{margin:0 0 12px;}
   .range{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--ink-soft);}
   .range input{width:72px;font-family:'IBM Plex Mono',monospace !important;}
   .total{font-weight:600;}
@@ -190,10 +194,13 @@
     <div class="card-head-row">
       <h2><span class="tag">1</span> 성적 접수 현황</h2>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn" id="sheetImportBtn">구글 시트 불러오기</button>
+        <button class="btn ghost small" id="sheetSettingBtn" title="구글 시트 연결 설정">⚙ 시트 연결</button>
         <button class="btn" id="addBtn">+ 학생 성적 입력</button>
         <button class="btn ghost small" id="exportBtn">엑셀 내보내기</button>
       </div>
     </div>
+    <p class="hint" id="importMsg" hidden></p>
     <div class="toprow"><div class="filters">
     <div class="filter-row">
       <div class="seg" id="trackSeg">
@@ -264,6 +271,7 @@
       <div class="field"><label for="fUpload">업로드날짜</label><input id="fUpload" type="date"></div>
     </div>
 
+    <div id="photoArea"></div>
     <p class="sec-title">성적</p>
     <div class="field"><label for="fPct">석차백분위 (%) <span id="pctHint" style="font-weight:400"></span></label>
       <input id="fPct" type="number" step="0.01" min="0" max="100" class="mono" placeholder="예: 12.34"></div>
@@ -311,7 +319,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp }
+import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, setDoc, arrayUnion }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // admin.html 과 같은 Firebase 프로젝트(okya-admin)를 사용합니다.
@@ -539,7 +547,7 @@ function render(){
       return `<tr data-id="${d.id}">
         <td class="num" style="text-align:center">${i+1}</td>
         <td><input type="date" class="update-in" data-up="${d.id}" value="${esc(d.uploadDate||'')}" aria-label="업로드날짜"></td>
-        <td><b>${esc(d.name)}</b>${d.track==='지역'?' <span class="pill gray">지역전형</span>':''}${d.type==='검정고시'?' <span class="pill gray">검정</span>':''}</td>
+        <td><b>${esc(d.name)}</b>${(d.photos||[]).length?`<a class="photo-link" href="${esc(d.photos[0])}" target="_blank" rel="noopener">성적표${d.photos.length>1?' '+d.photos.length:''}</a>`:''}${d.track==='지역'?' <span class="pill gray">지역전형</span>':''}${d.type==='검정고시'?' <span class="pill gray">검정</span>':''}</td>
         <td>${esc(d.gender)||'—'}</td><td>${esc(d.school)||'—'}</td><td>${esc(d.region)||'—'}</td>
         <td class="mono" style="font-size:12px">${esc(d.studentPhone)||'—'}</td><td class="mono" style="font-size:12px">${esc(d.guardianPhone)||'—'}</td>
         <td class="num">${d.pct==null?'—':fmt(d.pct)}</td>
@@ -549,7 +557,7 @@ function render(){
         <td><button class="btn ghost small" data-counsel="${d.id}">보기${n?` (${n})`:''}</button></td></tr>`;
     }).join('')}</tbody></table></div>`;
   $('#listWrap').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => {
-    if(e.target.closest('select,button,input')) return;
+    if(e.target.closest('select,button,input,a')) return;
     openEditor(tr.dataset.id);
   });
   $('#listWrap').querySelectorAll('[data-dec]').forEach(sel => sel.onchange = () => setDecision(sel.dataset.dec, sel.value));
@@ -579,9 +587,17 @@ function openEditor(id){
   $('#fPct').value = d.pct ?? ''; $('#fKyo').value = d.kyo ?? ''; $('#fChul').value = d.chul ?? ''; $('#fHwal').value = d.hwal ?? '';
   $('#fMemo').value = d.memo||''; $('#fChecked').checked = !!d.checked; $('#fQuick').value = quickString(d);
   $('#delBtn').hidden = !id;
-  drawGrades(); drawImport(true); updateScores();
+  drawGrades(); drawImport(true); drawPhotos(); updateScores();
   $('#scrim').hidden = false; $('#drawer').hidden = false;
   setTimeout(() => (id ? $('#fPct') : $('#fName')).focus(), 50);
+}
+function photoLinks(d){
+  return (d.photos||[]).map((u,i) => `<a class="photo-link" href="${esc(u)}" target="_blank" rel="noopener">사진 ${i+1} 열기</a>`).join('');
+}
+function drawPhotos(){
+  const d = editing?.d;
+  $('#photoArea').innerHTML = d && (d.photos||[]).length
+    ? `<div class="importbox done"><div class="photos-box"><b>성적표 사진</b>${photoLinks(d)}</div><span class="hint" style="font-size:12px">구글 드라이브에서 열려요</span></div>` : '';
 }
 function closeEditor(){ editing = null; $('#scrim').hidden = true; $('#drawer').hidden = true; }
 function readForm(){
@@ -694,6 +710,7 @@ async function save(){
     track:d.track, type:d.type, decision:d.decision, uploadDate:d.uploadDate||'', pct:d.pct, kyo:d.kyo, chul:d.chul, hwal:d.hwal,
     grades:d.grades, free:d.free, memo:d.memo, checked:d.checked,
     logKey: d.logKey || null, importedFrom: d.importedFrom || null, importAsked: !!d.importAsked,
+    photos: d.photos || [], sheetIds: d.sheetIds || [],
     updatedAt: serverTimestamp() };
   try{
     if(editing.id) await updateDoc(doc(db, SCORES, editing.id), payload);
@@ -750,6 +767,7 @@ function drawCounsel(resetForm){
         <div><span>전형총점</span><b class="mono">${fmt(c.total)}</b></div>
         <div><span>확정여부</span>${decSelect(d.id, d.decision||'')}</div>
       </div>
+      ${(d.photos||[]).length ? `<div class="photos-box"><b style="font-size:12px;color:var(--ink-soft)">성적표 사진</b>${photoLinks(d)}</div>` : ''}
 
       <div>
         <p class="sec-title" style="margin-bottom:8px">상담 기록 ${L.length}건</p>
@@ -879,6 +897,111 @@ $('#exportBtn').onclick = () => {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), '신입생성적');
   const t = new Date();
   XLSX.writeFile(wb, `신입생성적_${t.getMonth()+1}월${t.getDate()}일.xlsx`);
+};
+
+// ---------- 구글 시트 불러오기 ----------
+// 연결 정보(웹 앱 주소·비밀 키)는 Firestore settings/sheetImport 에 저장 → 로그인한 선생님만 읽을 수 있음
+const SETTING_REF = doc(db, 'settings', 'sheetImport');
+function showImportMsg(html, bad){
+  const el = $('#importMsg'); el.hidden = !html; el.innerHTML = html || '';
+  el.style.color = bad ? 'var(--red)' : 'var(--ink-soft)';
+}
+function sheetSettingModal(cur){
+  return new Promise(resolve => {
+    const m = $('#modal');
+    m.innerHTML = `<h3>구글 시트 연결 설정</h3>
+      <p class="hint">시트를 관리하는 선생님이 한 번만 저장하면, 로그인한 모든 선생님이 ‘구글 시트 불러오기’를 쓸 수 있어요.</p>
+      <div class="field"><label for="setUrl">Apps Script 웹 앱 주소</label><input id="setUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(cur?.url||'')}"></div>
+      <div class="field"><label for="setKey">비밀 키</label><input id="setKey" type="text" class="mono" value="${esc(cur?.key||'')}"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn ghost" id="mNo">취소</button><button class="btn" id="mYes">저장</button></div>`;
+    $('#mScrim').hidden = false; m.hidden = false;
+    const done = v => { m.hidden = true; $('#mScrim').hidden = true; resolve(v); };
+    $('#mNo').onclick = () => done(null);
+    $('#mYes').onclick = async () => {
+      const url = $('#setUrl').value.trim(), key = $('#setKey').value.trim();
+      if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){ alert('웹 앱 주소는 https://script.google.com/ 으로 시작하고 /exec 로 끝나야 해요.'); return; }
+      if(!key){ alert('비밀 키를 입력하세요.'); return; }
+      try{ await setDoc(SETTING_REF, { url, key, updatedAt: serverTimestamp() }); done({ url, key }); }
+      catch(err){ alert('저장하지 못했습니다: ' + err.message); }
+    };
+  });
+}
+async function loadSetting(){
+  try{ const snap = await getDoc(SETTING_REF); return snap.exists() ? snap.data() : null; }
+  catch(err){ return null; }
+}
+$('#sheetSettingBtn').onclick = async () => {
+  const saved = await sheetSettingModal(await loadSetting());
+  if(saved) showImportMsg('시트 연결을 저장했어요. 이제 ‘구글 시트 불러오기’를 눌러 보세요.');
+};
+function fixPhone(v){
+  let d = String(v||'').replace(/\D/g,'');
+  if(d.length === 10 && d.startsWith('10')) d = '0' + d;   // 시트에서 맨 앞 0이 빠진 경우
+  return d ? formatPhone(d) : '';
+}
+function colIndex(headers){
+  const find = (...keys) => headers.findIndex(h => keys.every(k => h.replace(/\s/g,'').includes(k)));
+  return {
+    ts: find('타임스탬프'),
+    name: find('이름'),
+    gender: find('성별'),
+    school: headers.findIndex(h => h.includes('중학') && !h.includes('소재')),
+    region: find('소재'),
+    stuPhone: headers.findIndex(h => h.includes('연락처') && h.includes('학생') && !h.includes('학부모')),
+    parPhone: headers.findIndex(h => h.includes('연락처') && (h.includes('학부모') || h.includes('보호자'))),
+    photos: headers.findIndex(h => h.includes('업로드') || h.includes('파일') || h.includes('사진'))
+  };
+}
+$('#sheetImportBtn').onclick = async () => {
+  const btn = $('#sheetImportBtn');
+  let set = await loadSetting();
+  if(!set){ set = await sheetSettingModal(null); if(!set) return; }
+  btn.disabled = true; btn.textContent = '불러오는 중...'; showImportMsg('구글 시트에서 응답을 가져오는 중이에요...');
+  try{
+    const res = await fetch(set.url + '?key=' + encodeURIComponent(set.key));
+    const data = await res.json();
+    if(!data.ok){ throw new Error(data.error === 'unauthorized' ? '비밀 키가 맞지 않아요. ⚙ 시트 연결에서 키를 확인하세요.' : (data.error || '알 수 없는 오류')); }
+    const H = data.headers || [], C = colIndex(H);
+    if(C.name < 0) throw new Error('시트에서 "이름" 질문을 찾지 못했어요. 질문 제목을 확인하세요.');
+    const get = (r, i) => i >= 0 ? String(r[i] ?? '').trim() : '';
+    let added = 0, merged = 0, skipped = 0;
+    const doneIds = new Set(scores.flatMap(d => d.sheetIds || []));
+    for(const r of data.rows || []){
+      const name = get(r, C.name); if(!name){ continue; }
+      const ts = get(r, C.ts);
+      const sid = `${ts}|${name}`;
+      if(doneIds.has(sid)){ skipped++; continue; }
+      const info = {
+        name, gender: normGender(get(r, C.gender)), school: get(r, C.school), region: get(r, C.region),
+        studentPhone: fixPhone(get(r, C.stuPhone)), guardianPhone: fixPhone(get(r, C.parPhone))
+      };
+      const photos = get(r, C.photos).split(/\s*,\s*/).filter(u => /^https?:\/\//.test(u));
+      const uploadDate = /^\d{4}-\d{2}-\d{2}/.test(ts) ? ts.slice(0,10) : today();
+      // 이미 있는 학생(이름 + 학부모 연락처 또는 이름 + 중학교)이면 사진만 더하고 빈 칸을 채움
+      const pd = phoneDigits(info.guardianPhone);
+      const ex = scores.find(d => d.name === name && ((pd && phoneDigits(d.guardianPhone) === pd) || (!pd && normSchool(d.school) === normSchool(info.school) && info.school)));
+      if(ex){
+        const patch = { photos: arrayUnion(...photos), sheetIds: arrayUnion(sid), updatedAt: serverTimestamp() };
+        ['gender','school','region','studentPhone','guardianPhone'].forEach(k => { if(!ex[k] && info[k]) patch[k] = info[k]; });
+        if(!ex.uploadDate) patch.uploadDate = uploadDate;
+        await updateDoc(doc(db, SCORES, ex.id), patch);
+        merged++;
+      } else {
+        await addDoc(collection(db, SCORES), {
+          ...info, track: info.region.includes('창녕') ? '지역' : '일반', type:'일반', decision:'', uploadDate,
+          pct:null, kyo:null, chul:null, hwal:null, grades: blankGrades(), free: blankFree(), memo:'', checked:false,
+          logKey: null, importedFrom: '구글 시트', importAsked: true, photos, sheetIds: [sid],
+          createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+        });
+        added++;
+      }
+      doneIds.add(sid);
+    }
+    showImportMsg(`불러오기 완료 · 새 학생 <b>${added}</b>명 추가${merged?` · 기존 학생 <b>${merged}</b>명에 사진 추가`:''}${skipped?` · 이미 불러온 응답 ${skipped}건은 건너뜀`:''}. 새 학생은 석차백분위와 성취도를 입력해 주세요.`);
+  }catch(err){
+    showImportMsg('불러오지 못했어요: ' + esc(err.message || err) + ' <br>웹 앱 주소가 맞는지, Apps Script를 “모든 사용자” 권한으로 배포했는지 확인하세요.', true);
+  }
+  btn.disabled = false; btn.textContent = '구글 시트 불러오기';
 };
 
 // ---------- 실시간 구독 ----------
