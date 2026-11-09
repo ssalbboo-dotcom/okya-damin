@@ -261,6 +261,10 @@
     padding:2px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .cal-cell.selected .cal-entry{background:#fff;}
+  .cal-entry[data-calopen]{cursor:pointer;}
+  .cal-entry[data-calopen]:hover{background:var(--green); color:#fff;}
+  .cal-detail-name .name-click{cursor:pointer; color:var(--green); text-underline-offset:3px;}
+  .cal-detail-name .name-click:hover{text-decoration:underline;}
   .cal-more{font-size:10px; color:var(--muted);}
 
   .cal-day-detail{margin-top:18px; padding-top:18px; border-top:1px dashed var(--line);}
@@ -996,12 +1000,20 @@ function renderCalendar(){
     cells += `
       <div class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}" data-caldate="${dateStr}">
         <span class="cal-daynum">${d}</span>
-        ${shown.map(r => `<span class="cal-entry">${escapeHtml(r.studentName||'')} · ${escapeHtml(r.time||'')}</span>`).join('')}
+        ${shown.map(r => `<span class="cal-entry" data-calopen="${r.id}" title="클릭하면 상담 기록 창이 열립니다">${escapeHtml(r.studentName||'')} · ${escapeHtml(r.time||'')}</span>`).join('')}
         ${extra > 0 ? `<span class="cal-more">+${extra}건 더</span>` : ''}
       </div>
     `;
   }
   document.getElementById('calGrid').innerHTML = cells;
+
+  // 학생 이름 클릭 → 상담신청목록의 "상담관리"와 같은 상담 기록 창
+  document.querySelectorAll('#calGrid [data-calopen]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();   // 날짜 칸 선택은 하지 않음
+      sendToCounselingLog(el.getAttribute('data-calopen'));
+    });
+  });
 
   document.querySelectorAll('.cal-cell[data-caldate]').forEach(cell => {
     cell.addEventListener('click', () => {
@@ -1036,7 +1048,7 @@ function renderCalDayDetail(dateStr){
     <div class="cal-detail-row">
       <span class="chip">${escapeHtml(r.time || '')}</span>
       <div class="cal-detail-main">
-        <div class="cal-detail-name">${escapeHtml(r.studentName || '')} <span style="font-weight:400; color:var(--ink-soft);">(${escapeHtml(r.grade||'')} · ${escapeHtml(r.gender||'')})</span></div>
+        <div class="cal-detail-name"><span class="name-click" data-calopen="${r.id}" title="클릭하면 상담 기록 창이 열립니다">${escapeHtml(r.studentName || '')}</span> <span style="font-weight:400; color:var(--ink-soft);">(${escapeHtml(r.grade||'')} · ${escapeHtml(r.gender||'')})</span></div>
         <div class="cal-detail-sub">${escapeHtml(r.schoolName||'')} ${r.schoolLocation ? '· '+escapeHtml(r.schoolLocation) : ''} · ${escapeHtml(r.parentPhone||'')} · ${escapeHtml(r.consultMethod||'')}</div>
         ${r.note ? `<div class="cal-detail-sub">비고: ${escapeHtml(r.note)}</div>` : ''}
       </div>
@@ -1045,6 +1057,9 @@ function renderCalDayDetail(dateStr){
     </div>
   `).join('');
 
+  listEl.querySelectorAll('[data-calopen]').forEach(el => {
+    el.addEventListener('click', () => sendToCounselingLog(el.getAttribute('data-calopen')));
+  });
   listEl.querySelectorAll('[data-caledit]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-caledit');

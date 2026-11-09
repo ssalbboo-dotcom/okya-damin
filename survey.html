@@ -190,7 +190,8 @@
       <div class="field">
         <label class="field-label">희망 시간</label>
         <select id="timeSelect" disabled><option value="">날짜를 먼저 선택하세요</option></select>
-        <p class="hint" style="margin-top:6px;">(이미 상담이 예정되어 있는 시간은 보여지지 않습니다.)<br>평일 상담은 오후 7시~8시 한 타임으로 운영하며, 상담 신청은 12월 6일까지 받습니다.</p>
+        <p class="hint" style="margin-top:6px; font-size:13px; color:#22262B; line-height:1.6;">(이미 상담이 예정되어 있는 시간은 보여지지 않습니다.)<br>평일 상담은 오후 7시~8시 한 타임으로 운영하며, 상담 신청은 12월 6일까지 받습니다.</p>
+        <p class="hint" style="margin-top:4px; font-size:13px; color:#C1440E; font-weight:600; line-height:1.6;">대면 상담(학교방문)의 경우에는 당일 신청 및 접수는 받지 않습니다.</p>
       </div>
     </div>
 
@@ -220,7 +221,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, doc, onSnapshot, serverTimestamp, setDoc, increment
+  getFirestore, collection, addDoc, doc, onSnapshot, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ------------------------------------------------------------------
@@ -266,18 +267,15 @@ const BLOCKED_MONTH_DAYS = [
   [12,5]
 ];
 
-// 시간대별 신청 수 (이름·연락처 없이 날짜·시간·신청 수·추가 허용 수만 담긴 목록)
-// 다른 신청자의 개인정보는 이 페이지에서 볼 수 없습니다.
-let slotCounts = new Map();
-const slotId = (date, time) => `${date}_${time}`;
+let responses = [];  // 기존 신청 내역 (중복 방지용)
 
 onSnapshot(doc(db, 'config', 'meta'), snap => {
   const name = snap.exists() && snap.data().eventName ? snap.data().eventName : '개별 상담 신청';
   document.getElementById('titleText').textContent = name;
 });
 
-onSnapshot(collection(db, 'slotCounts'), snap => {
-  slotCounts = new Map(snap.docs.map(d => [d.id, d.data()]));
+onSnapshot(collection(db, 'responses'), snap => {
+  responses = snap.docs.map(d => d.data());
   populateTimes();
 });
 
@@ -360,10 +358,10 @@ function availableTimesFor(dateStr){
   if(!isWeekend(dateStr)) return WEEKDAY_TIME_OPTIONS.slice();   // 평일: 인원 제한 없음
   const base = weekendBaseCapacity(dateStr);
   return FIXED_TIME_OPTIONS.filter(t => {
-    const slot = slotCounts.get(slotId(dateStr, t)) || { count:0, extra:0 };
+    const sameSlot = responses.filter(r => r.date === dateStr && r.time === t);
     // 관리자가 그 시간대 신청 건에 "허용"을 누를 때마다 1팀씩 더 받는다 (허용 2건이면 +2팀)
-    const capacity = base + (slot.extra || 0);
-    return (slot.count || 0) < capacity;
+    const capacity = base + sameSlot.filter(r => r.duplicateAllowed).length;
+    return sameSlot.length < capacity;
   });
 }
 
@@ -467,10 +465,6 @@ submitBtn.addEventListener('click', async () => {
   submitBtn.textContent = '접수 중...';
   try{
     await addDoc(collection(db, 'responses'), payload);
-    // 이 시간대 신청 수 +1 (실패해도 신청은 이미 접수됨 — 관리 화면이 열리면 다시 맞춰짐)
-    try{
-      await setDoc(doc(db, 'slotCounts', slotId(dateStr, time)), { date: dateStr, time, count: increment(1) }, { merge:true });
-    }catch(err){}
     showDone(payload);
   }catch(e){
     alert('신청 중 문제가 발생했습니다. 다시 시도해주세요.');
