@@ -1523,16 +1523,38 @@ document.getElementById('logClearFilterBtn').addEventListener('click', () => {
   renderLogs();
 });
 
+// ---------- 백업(CSV)용 공통 도우미 ----------
+function tsMillis(r){ return r.createdAt?.toMillis ? r.createdAt.toMillis() : 0; }
+function csvDateTime(r){
+  if(!r.createdAt?.toDate) return '';
+  const d = r.createdAt.toDate(), p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function backupStamp(){
+  const d = new Date(), p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;
+}
+
 document.getElementById('logExportBtn').addEventListener('click', () => {
   if(logs.length === 0){ alert('내보낼 상담일지가 없습니다.'); return; }
   const header = [
-    '상담유형','상담날짜','이름','성별','학년','출신 지역','중학교','내신성적 (등수)',
-    '연락처(학생)','연락처(보호자)','입학의지 (상담이후)','내담자','상담자','상담요약'
+    '번호','차수','상담유형','상담날짜','이름','성별','학년','출신 지역','중학교','내신성적 (등수)',
+    '연락처(학생)','연락처(보호자)','입학의지 (상담이후)','내담자','상담자','상담요약','등록일시'
   ];
-  const rows = logs.map(r => [
+  // 같은 학생의 기록끼리 모으고(1차·2차… 순), 학생 순서는 첫 상담 날짜 순
+  const byDate = (a,b) => String(a.date||'').localeCompare(String(b.date||'')) || (tsMillis(a) - tsMillis(b));
+  const groups = new Map();
+  logs.forEach(l => { const k = logKeyOf(l); if(!groups.has(k)) groups.set(k, []); groups.get(k).push(l); });
+  const ordered = [...groups.values()]
+    .map(g => g.sort(byDate))
+    .sort((g1,g2) => byDate(g1[0], g2[0]));
+  const flat = [];
+  ordered.forEach(g => g.forEach((r, i) => flat.push({ r, seq: i+1 })));
+  const rows = flat.map(({r, seq}, idx) => [
+    idx+1, `${seq}차`,
     r.consultType||'', r.date||'', r.name||'', r.gender||'', r.grade||'', r.region||'',
     r.middleSchool||'', r.gradeRank||'', r.studentPhone||'', r.guardianPhone||'',
-    r.admissionWill||'', r.visitor||'', r.counselor||'', r.summary||''
+    r.admissionWill||'', r.visitor||'', r.counselor||'', r.summary||'', csvDateTime(r)
   ]);
   const csv = [header, ...rows].map(row =>
     row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')
@@ -1540,7 +1562,7 @@ document.getElementById('logExportBtn').addEventListener('click', () => {
   const blob = new Blob(["\uFEFF" + csv], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = '상담일지.csv';
+  a.href = url; a.download = `상담일지_백업_${backupStamp()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 });
@@ -1628,10 +1650,14 @@ document.getElementById('logImportFileInput').addEventListener('change', async (
 document.getElementById('exportBtn').addEventListener('click', () => {
   if(responses.length === 0){ alert('내보낼 신청 기록이 없습니다.'); return; }
   const header = [
-    '학생 성명','성별','학년','학교 이름','학교 소재지','학부모 연락처','방문인원','상담방법',
+    '번호','접수일시','학생 성명','성별','학년','학교 이름','학교 소재지','학부모 연락처','방문인원','상담방법',
     '상담희망날짜','상담희망시간','상담 확정 여부','동일 시간 중복 허용 여부','상담 완료 여부','상담자','비고'
   ];
-  const rows = responses.map(r => [
+  // 화면의 '번호'와 같은 순서: 가장 먼저 접수된 신청이 1번
+  const sortedAll = [...responses].sort((a,b) => tsMillis(a) - tsMillis(b));
+  const rows = sortedAll.map((r, idx) => [
+    idx+1,
+    csvDateTime(r),
     r.studentName ?? r.name ?? '',
     r.gender || '',
     r.grade || '',
@@ -1654,7 +1680,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   const blob = new Blob(["\uFEFF" + csv], { type:'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = '개별상담신청현황.csv';
+  a.href = url; a.download = `개별상담신청현황_백업_${backupStamp()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 });
