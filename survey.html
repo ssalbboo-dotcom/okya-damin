@@ -529,7 +529,8 @@ submitBtn.addEventListener('click', async () => {
     const base = weekendBaseCapacity(dateStr);
     const slotRef = doc(db, 'slotCounts', slotIdOf(dateStr, time));
     const respRef = doc(collection(db, 'responses'));
-    await runTransaction(db, async tx => {
+    // 서버가 응답하지 않거나 한도 초과로 계속 재시도하는 경우, 20초 뒤에는 멈추고 안내한다
+    const tx = runTransaction(db, async tx => {
       const s = await tx.get(slotRef);
       const cur = s.exists() ? s.data() : null;
       const count = cur ? (cur.count || 0) : 0;
@@ -537,9 +538,17 @@ submitBtn.addEventListener('click', async () => {
       tx.set(respRef, payload);
       if(cur) tx.update(slotRef, { count: count + 1 });
       else tx.set(slotRef, { date: dateStr, time, count: 1 });
-    });
+    }, { maxAttempts: 3 });
+    await Promise.race([tx, new Promise((_, rej) => setTimeout(() => rej(new Error('TIMEOUT')), 20000))]);
     showDone(payload);
   }catch(e){
+    console.error('신청 저장 실패', e);
+    if(e && (e.code === 'resource-exhausted' || e.message === 'TIMEOUT')){
+      alert('지금은 신청이 접수되지 않습니다. 잠시 후 다시 시도해주세요.\n계속 안 되면 학교로 전화 주시면 상담 일정을 잡아드리겠습니다.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = '신청하기';
+      return;
+    }
     if(e && e.message === 'FULL'){
       alert('선택하신 시간은 방금 정원이 마감되었습니다. 다른 시간을 선택해주세요.');
       submitBtn.disabled = false;

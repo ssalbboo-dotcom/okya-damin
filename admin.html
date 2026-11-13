@@ -579,8 +579,10 @@ editTitleBtn.addEventListener('click', async () => {
 });
 
 // ---------- 실시간 구독 ----------
+let responsesLoaded = false;
 onSnapshot(collection(db, 'responses'), snap => {
   responses = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  if(!snap.metadata.fromCache) responsesLoaded = true;
   renderResponses();
   renderCalendar();
   syncSlotCounts();
@@ -596,12 +598,15 @@ let slotCounts = new Map();
 let slotCountsLoaded = false, syncing = false, syncAgain = false;
 onSnapshot(collection(db, 'slotCounts'), snap => {
   slotCounts = new Map(snap.docs.map(d => [d.id, d.data()]));
-  slotCountsLoaded = true;
+  if(!snap.metadata.fromCache) slotCountsLoaded = true;
   syncSlotCounts();
 }, () => {});
 const slotId = (date, time) => `${date}_${time}`;
 async function syncSlotCounts(){
-  if(!slotCountsLoaded) return;
+  // 신청 목록과 시간대 목록을 "둘 다" 서버에서 받은 뒤에만 맞춘다.
+  // (신청 목록이 오기 전에 맞추면 신청이 0건으로 보여 시간대 목록을 전부 지웠다가 다시 만드는 일이 생김
+  //  → 저장 횟수 낭비 + 그 사이 학부모 화면에 마감된 시간이 열려 보임)
+  if(!slotCountsLoaded || !responsesLoaded) return;
   if(syncing){ syncAgain = true; return; }
   syncing = true;
   try{
