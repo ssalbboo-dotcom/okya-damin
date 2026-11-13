@@ -254,17 +254,21 @@ const FIXED_TIME_OPTIONS = ['오전 10시~11시','오후 1시~2시','오후 3시
 // 평일 상담 시간 (1타임, 인원 제한 없음)
 const WEEKDAY_TIME_OPTIONS = ['오후 7시~8시'];
 
-// 신청 마감일 (12월 7일부터 원서 접수)
+// 신청 마감일
 const LAST_APPLY_DATE = { month: 12, day: 6 };
 // 이 날짜부터 주말 기본 정원을 3팀으로
 const WEEKEND_3TEAM_FROM = { month: 11, day: 22 };
+// 특정 날짜에만 열리는 시간 (인원 제한 없음, 해당 시간만 신청 가능)
+const SPECIAL_DAY_SLOTS = {
+  '12-5': ['오후 2시~4시'],
+  '12-6': ['오후 2시~4시']
+};
 
 // 자체 행사로 상담이 불가능한 날짜 (월/일 기준 - 아예 날짜 선택지에서 제외)
 const BLOCKED_MONTH_DAYS = [
   [9,23],[9,24],[9,25],[9,26],[9,27],[9,30],
   [10,7],[10,8],[10,9],[10,13],[10,14],[10,15],[10,24],
-  [11,4],[11,19],[11,21],
-  [12,5]
+  [11,4],[11,14],[11,15],[11,19],[11,21]
 ];
 
 let responses = [];  // 기존 신청 내역 (중복 방지용)
@@ -355,6 +359,9 @@ function weekendBaseCapacity(dateStr){
 
 // 선택한 날짜에 신청 가능한 시간 목록
 function availableTimesFor(dateStr){
+  const [, sm, sd] = dateStr.split('-').map(Number);
+  const special = SPECIAL_DAY_SLOTS[`${sm}-${sd}`];
+  if(special) return special.slice();                             // 특정 날짜: 지정 시간만, 인원 제한 없음
   if(!isWeekend(dateStr)) return WEEKDAY_TIME_OPTIONS.slice();   // 평일: 인원 제한 없음
   const base = weekendBaseCapacity(dateStr);
   return FIXED_TIME_OPTIONS.filter(t => {
