@@ -469,6 +469,7 @@ submitBtn.addEventListener('click', async () => {
   if(!dateStr || !time) return;
 
   // 날짜·시간·정원 확인 (실제 정원 확인은 아래 트랜잭션에서 한 번 더 함)
+  const [, cm, cd] = dateStr.split('-').map(Number);
   if(!isSelectableDate(Number(dateStr.slice(0,4)), cm, cd) || !availableTimesFor(dateStr).includes(time)){
     alert('선택하신 날짜·시간은 마감되었거나 신청할 수 없습니다. 다른 날짜·시간을 선택해주세요.');
     populateTimes();
