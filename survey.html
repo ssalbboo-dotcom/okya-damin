@@ -358,6 +358,10 @@ function weekendBaseCapacity(dateStr){
 }
 
 // 선택한 날짜에 신청 가능한 시간 목록
+function normTime(s){
+  return String(s||'').replace(/\s+/g,'').replace(/[～〜~]/g,'~');
+}
+
 function availableTimesFor(dateStr){
   const [, sm, sd] = dateStr.split('-').map(Number);
   const special = SPECIAL_DAY_SLOTS[`${sm}-${sd}`];
@@ -365,7 +369,9 @@ function availableTimesFor(dateStr){
   if(!isWeekend(dateStr)) return WEEKDAY_TIME_OPTIONS.slice();   // 평일: 인원 제한 없음
   const base = weekendBaseCapacity(dateStr);
   return FIXED_TIME_OPTIONS.filter(t => {
-    const sameSlot = responses.filter(r => r.date === dateStr && r.time === t);
+    // 시간 표기가 조금 달라도(공백, 물결표 종류) 같은 시간대로 센다
+    const key = normTime(t);
+    const sameSlot = responses.filter(r => String(r.date||'').trim() === dateStr && normTime(r.time) === key);
     // 관리자가 그 시간대 신청 건에 "허용"을 누를 때마다 1팀씩 더 받는다 (허용 2건이면 +2팀)
     const capacity = base + sameSlot.filter(r => r.duplicateAllowed).length;
     return sameSlot.length < capacity;
