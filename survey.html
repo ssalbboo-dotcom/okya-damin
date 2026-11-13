@@ -221,7 +221,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, doc, onSnapshot, serverTimestamp, getDocs, query, where
+  getFirestore, collection, doc, onSnapshot, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ------------------------------------------------------------------
@@ -271,27 +271,27 @@ const BLOCKED_MONTH_DAYS = [
   [11,4],[11,14],[11,15],[11,19],[11,21]
 ];
 
-let responses = [];  // 기존 신청 내역 (중복 방지용)
 
 onSnapshot(doc(db, 'config', 'meta'), snap => {
   const name = snap.exists() && snap.data().eventName ? snap.data().eventName : '개별 상담 신청';
   document.getElementById('titleText').textContent = name;
 });
 
-// 신청 현황을 한 번이라도 정상으로 읽어와야 시간 선택을 허용한다 (읽기 실패 시 전부 비어 보이는 문제 방지)
-let responsesLoaded = false;
-let responsesError = false;
-onSnapshot(collection(db, 'responses'), snap => {
-  responses = snap.docs.map(d => d.data());
-  responsesLoaded = true;
-  responsesError = false;
+// 시간대별 신청 수 (slotCounts: 이름·연락처 없이 날짜·시간·신청 수만 담김, 누구나 읽을 수 있음)
+let slotMap = new Map();
+let slotsLoaded = false, slotsError = false;
+onSnapshot(collection(db, 'slotCounts'), snap => {
+  slotMap = new Map(snap.docs.map(d => [d.id, d.data()]));
+  slotsLoaded = true;
+  slotsError = false;
   populateTimes();
 }, err => {
   console.error('신청 현황 읽기 실패', err);
-  responsesLoaded = false;
-  responsesError = true;
+  slotsLoaded = false;
+  slotsError = true;
   populateTimes();
 });
+const slotIdOf = (dateStr, time) => `${dateStr}_${time}`;
 
 const monthSelect = document.getElementById('monthSelect');
 const daySelect = document.getElementById('daySelect');
@@ -379,12 +379,11 @@ function availableTimesFor(dateStr){
   if(!isWeekend(dateStr)) return WEEKDAY_TIME_OPTIONS.slice();   // 평일: 인원 제한 없음
   const base = weekendBaseCapacity(dateStr);
   return FIXED_TIME_OPTIONS.filter(t => {
-    // 시간 표기가 조금 달라도(공백, 물결표 종류) 같은 시간대로 센다
-    const key = normTime(t);
-    const sameSlot = responses.filter(r => String(r.date||'').trim() === dateStr && normTime(r.time) === key);
-    // 관리자가 그 시간대 신청 건에 "허용"을 누를 때마다 1팀씩 더 받는다 (허용 2건이면 +2팀)
-    const capacity = base + sameSlot.filter(r => r.duplicateAllowed).length;
-    return sameSlot.length < capacity;
+    const s = slotMap.get(slotIdOf(dateStr, t)) || {};
+    const count = s.count || 0;
+    // 관리자가 그 시간대 신청 건에 "허용"을 누를 때마다 1팀씩 더 받는다
+    const capacity = base + (s.extra || 0);
+    return count < capacity;
   });
 }
 
@@ -436,9 +435,9 @@ function populateTimes(){
     updateSubmitState();
     return;
   }
-  if(!responsesLoaded){
+  if(!slotsLoaded){
     timeSelect.disabled = true;
-    timeSelect.innerHTML = responsesError
+    timeSelect.innerHTML = slotsError
       ? '<option value="">신청 현황을 불러오지 못했습니다. 새로고침 해주세요</option>'
       : '<option value="">신청 현황을 불러오는 중입니다...</option>';
     updateSubmitState();
@@ -469,17 +468,7 @@ submitBtn.addEventListener('click', async () => {
   const time = timeSelect.value;
   if(!dateStr || !time) return;
 
-  // 신청 직전에 같은 날짜의 신청 현황을 서버에서 새로 읽어 다시 센다
-  const [, cm, cd] = dateStr.split('-').map(Number);
-  let fresh;
-  try{
-    const snap = await getDocs(query(collection(db, 'responses'), where('date', '==', dateStr)));
-    fresh = snap.docs.map(d => d.data());
-  }catch(e){
-    alert('신청 현황을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
-    return;
-  }
-  responses = fresh;   // 날짜별로 읽은 최신 신청 현황으로 정원 판단
+  // 날짜·시간·정원 확인 (실제 정원 확인은 아래 트랜잭션에서 한 번 더 함)
   if(!isSelectableDate(Number(dateStr.slice(0,4)), cm, cd) || !availableTimesFor(dateStr).includes(time)){
     alert('선택하신 날짜·시간은 마감되었거나 신청할 수 없습니다. 다른 날짜·시간을 선택해주세요.');
     populateTimes();
@@ -503,10 +492,31 @@ submitBtn.addEventListener('click', async () => {
 
   submitBtn.disabled = true;
   submitBtn.textContent = '접수 중...';
+  // 정원 확인과 신청 저장을 한 번에 처리 (동시에 여러 명이 신청해도 정원을 넘지 않도록 트랜잭션 사용)
   try{
-    await addDoc(collection(db, 'responses'), payload);
+    const special = !!SPECIAL_DAY_SLOTS[`${cm}-${cd}`];
+    const limited = isWeekend(dateStr) && !special;
+    const base = weekendBaseCapacity(dateStr);
+    const slotRef = doc(db, 'slotCounts', slotIdOf(dateStr, time));
+    const respRef = doc(collection(db, 'responses'));
+    await runTransaction(db, async tx => {
+      const s = await tx.get(slotRef);
+      const cur = s.exists() ? s.data() : null;
+      const count = cur ? (cur.count || 0) : 0;
+      if(limited && count >= base + ((cur && cur.extra) || 0)) throw new Error('FULL');
+      tx.set(respRef, payload);
+      if(cur) tx.update(slotRef, { count: count + 1 });
+      else tx.set(slotRef, { date: dateStr, time, count: 1 });
+    });
     showDone(payload);
   }catch(e){
+    if(e && e.message === 'FULL'){
+      alert('선택하신 시간은 방금 정원이 마감되었습니다. 다른 시간을 선택해주세요.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = '신청하기';
+      populateTimes();
+      return;
+    }
     alert('신청 중 문제가 발생했습니다. 다시 시도해주세요.');
     submitBtn.disabled = false;
     submitBtn.textContent = '신청하기';
