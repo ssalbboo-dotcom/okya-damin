@@ -221,7 +221,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, addDoc, doc, onSnapshot, serverTimestamp
+  getFirestore, collection, addDoc, doc, onSnapshot, serverTimestamp, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ------------------------------------------------------------------
@@ -278,8 +278,18 @@ onSnapshot(doc(db, 'config', 'meta'), snap => {
   document.getElementById('titleText').textContent = name;
 });
 
+// 신청 현황을 한 번이라도 정상으로 읽어와야 시간 선택을 허용한다 (읽기 실패 시 전부 비어 보이는 문제 방지)
+let responsesLoaded = false;
+let responsesError = false;
 onSnapshot(collection(db, 'responses'), snap => {
   responses = snap.docs.map(d => d.data());
+  responsesLoaded = true;
+  responsesError = false;
+  populateTimes();
+}, err => {
+  console.error('신청 현황 읽기 실패', err);
+  responsesLoaded = false;
+  responsesError = true;
   populateTimes();
 });
 
@@ -426,6 +436,14 @@ function populateTimes(){
     updateSubmitState();
     return;
   }
+  if(!responsesLoaded){
+    timeSelect.disabled = true;
+    timeSelect.innerHTML = responsesError
+      ? '<option value="">신청 현황을 불러오지 못했습니다. 새로고침 해주세요</option>'
+      : '<option value="">신청 현황을 불러오는 중입니다...</option>';
+    updateSubmitState();
+    return;
+  }
 
   const available = availableTimesFor(dateStr);
   if(available.length === 0){
@@ -451,8 +469,17 @@ submitBtn.addEventListener('click', async () => {
   const time = timeSelect.value;
   if(!dateStr || !time) return;
 
-  // 페이지를 오래 열어둔 경우를 대비해 신청 직전에 한 번 더 확인
+  // 신청 직전에 같은 날짜의 신청 현황을 서버에서 새로 읽어 다시 센다
   const [, cm, cd] = dateStr.split('-').map(Number);
+  let fresh;
+  try{
+    const snap = await getDocs(query(collection(db, 'responses'), where('date', '==', dateStr)));
+    fresh = snap.docs.map(d => d.data());
+  }catch(e){
+    alert('신청 현황을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    return;
+  }
+  responses = fresh;   // 날짜별로 읽은 최신 신청 현황으로 정원 판단
   if(!isSelectableDate(Number(dateStr.slice(0,4)), cm, cd) || !availableTimesFor(dateStr).includes(time)){
     alert('선택하신 날짜·시간은 마감되었거나 신청할 수 없습니다. 다른 날짜·시간을 선택해주세요.');
     populateTimes();
