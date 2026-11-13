@@ -349,11 +349,16 @@ function todayYMD(){
 }
 function ymdNum(m, d){ return m*100 + d; }
 
-// 오늘 이후 ~ 12월 6일까지, 막힌 날짜 제외
+// 대면 상담(학교방문)은 당일 신청 불가
+const consultMethodSelect = document.getElementById('consultMethodSelect');
+function isFaceToFace(){ return consultMethodSelect.value.includes('대면'); }
+
+// 오늘 이후 ~ 12월 6일까지, 막힌 날짜 제외 (대면 상담이면 오늘도 제외)
 function isSelectableDate(year, month, day){
   const t = todayYMD();
   const n = ymdNum(month, day);
   if(n < ymdNum(t.m, t.d)) return false;
+  if(n === ymdNum(t.m, t.d) && isFaceToFace()) return false;
   if(n > ymdNum(LAST_APPLY_DATE.month, LAST_APPLY_DATE.day)) return false;
   return !isBlockedDate(year, month, day);
 }
@@ -388,7 +393,8 @@ function availableTimesFor(dateStr){
 }
 
 // ---------- 월 / 일 드롭다운 (오늘 ~ 12월 6일, 신청 가능한 날짜가 있는 달만) ----------
-(function populateMonths(){
+function populateMonths(){
+  monthSelect.disabled = false;
   const year = new Date().getFullYear();
   const t = todayYMD();
   const months = [];
@@ -402,9 +408,9 @@ function availableTimesFor(dateStr){
     ? '<option value="">선택</option>' + months.map(m => `<option value="${m}">${m}월</option>`).join('')
     : '<option value="">신청 기간이 종료되었습니다</option>';
   if(!months.length) monthSelect.disabled = true;
-})();
+}
 
-monthSelect.addEventListener('change', () => {
+function populateDays(){
   const month = parseInt(monthSelect.value);
   if(!month){
     daySelect.innerHTML = '<option value="">월을 먼저 선택</option>';
@@ -418,6 +424,29 @@ monthSelect.addEventListener('change', () => {
   daySelect.innerHTML = '<option value="">선택</option>' +
     days.map(d => `<option value="${d}">${d}일</option>`).join('');
   populateTimes();
+}
+
+populateMonths();
+monthSelect.addEventListener('change', populateDays);
+
+// 상담방법을 바꾸면 날짜 목록을 다시 만든다 (이미 고른 월·일이 여전히 가능하면 그대로 유지)
+consultMethodSelect.addEventListener('change', () => {
+  const prevMonth = monthSelect.value, prevDay = daySelect.value;
+  populateMonths();
+  if(prevMonth && [...monthSelect.options].some(o => o.value === prevMonth)){
+    monthSelect.value = prevMonth;
+    populateDays();
+    if(prevDay && [...daySelect.options].some(o => o.value === prevDay)){
+      daySelect.value = prevDay;
+      populateTimes();
+    } else if(prevDay){
+      alert('대면 상담(학교방문)은 당일 신청을 받지 않습니다. 다른 날짜를 선택해주세요.');
+    }
+  } else {
+    daySelect.innerHTML = '<option value="">월을 먼저 선택</option>';
+    populateTimes();
+    if(prevMonth) alert('대면 상담(학교방문)은 당일 신청을 받지 않습니다. 다른 날짜를 선택해주세요.');
+  }
 });
 
 function isBlockedDate(year, month, day){
@@ -540,6 +569,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   document.getElementById('doneArea').style.display = 'none';
   document.getElementById('formArea').style.display = 'block';
   requiredInputs.forEach(el => el.value = '');
+  populateMonths();
   monthSelect.value = '';
   daySelect.innerHTML = '<option value="">월을 먼저 선택</option>';
   populateTimes();
