@@ -221,7 +221,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, doc, onSnapshot, serverTimestamp, runTransaction
+  getFirestore, collection, doc, onSnapshot, serverTimestamp, runTransaction, query, where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ------------------------------------------------------------------
@@ -280,7 +280,9 @@ onSnapshot(doc(db, 'config', 'meta'), snap => {
 // 시간대별 신청 수 (slotCounts: 이름·연락처 없이 날짜·시간·신청 수만 담김, 누구나 읽을 수 있음)
 let slotMap = new Map();
 let slotsLoaded = false, slotsError = false;
-onSnapshot(collection(db, 'slotCounts'), snap => {
+// 지난 날짜는 읽지 않는다 (페이지를 열 때마다 모든 시간대를 읽으면 무료 읽기 한도를 빨리 씀)
+const todayKey = (() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; })();
+onSnapshot(query(collection(db, 'slotCounts'), where('date', '>=', todayKey)), snap => {
   slotMap = new Map(snap.docs.map(d => [d.id, d.data()]));
   slotsLoaded = true;
   slotsError = false;

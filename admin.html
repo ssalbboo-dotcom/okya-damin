@@ -483,7 +483,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager, terminate, clearIndexedDbPersistence, collection, addDoc, doc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, setDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -510,7 +510,10 @@ if(!isConfigured){
 }
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// 이 컴퓨터에 받은 데이터를 저장해 두고, 다시 열 때 바뀐 것만 서버에서 받는다 (읽기 횟수 절약)
+let db;
+try{ db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+catch(err){ console.warn('로컬 저장 사용 불가, 기본 방식으로 연결', err); db = initializeFirestore(app, {}); }
 
 // ------------------------------------------------------------------
 // 로그인 (Firebase Authentication · 이메일/비밀번호)
@@ -537,7 +540,12 @@ document.getElementById('lockForm').addEventListener('submit', async (e) => {
   }
   btn.disabled = false; btn.textContent = '로그인';
 });
-window.lockPage = async () => { await signOut(auth); location.reload(); };
+// 로그아웃하면 이 컴퓨터에 저장된 학생 데이터도 지운다
+window.lockPage = async () => {
+  await signOut(auth);
+  try{ await terminate(db); await clearIndexedDbPersistence(db); }catch(err){ console.warn('로컬 데이터 삭제 실패', err); }
+  location.reload();
+};
 await new Promise(resolve => onAuthStateChanged(auth, user => {
   if(user){ document.body.classList.remove('locked'); resolve(); }
   else document.body.classList.add('locked');

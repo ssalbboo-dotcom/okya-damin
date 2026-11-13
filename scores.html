@@ -319,7 +319,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, setDoc, arrayUnion }
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, terminate, clearIndexedDbPersistence, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, setDoc, arrayUnion }
   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // admin.html 과 같은 Firebase 프로젝트(okya-admin)를 사용합니다.
@@ -332,7 +332,10 @@ const firebaseConfig = {
   appId: "1:226340731611:web:f9621ec1462bd9d6e02afe"
 };
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// 이 컴퓨터에 받은 데이터를 저장해 두고, 다시 열 때 바뀐 것만 서버에서 받는다 (읽기 횟수 절약)
+let db;
+try{ db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+catch(err){ console.warn('로컬 저장 사용 불가, 기본 방식으로 연결', err); db = initializeFirestore(app, {}); }
 
 // ---------- 로그인 (admin.html 과 같은 계정, 한 번 로그인하면 두 페이지 모두 열림) ----------
 const auth = getAuth(app);
@@ -354,7 +357,12 @@ document.getElementById('lockForm').addEventListener('submit', async (e) => {
   }
   btn.disabled = false; btn.textContent = '로그인';
 });
-window.lockPage = async () => { await signOut(auth); location.reload(); };
+// 로그아웃하면 이 컴퓨터에 저장된 학생 데이터도 지운다
+window.lockPage = async () => {
+  await signOut(auth);
+  try{ await terminate(db); await clearIndexedDbPersistence(db); }catch(err){ console.warn('로컬 데이터 삭제 실패', err); }
+  location.reload();
+};
 await new Promise(resolve => onAuthStateChanged(auth, user => {
   if(user){ document.body.classList.remove('locked'); resolve(); }
   else document.body.classList.add('locked');
