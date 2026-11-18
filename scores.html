@@ -58,7 +58,9 @@
   table.list th{text-align:left;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:11px;color:var(--ink-soft);letter-spacing:.03em;border-bottom:1px solid var(--line);padding:6px 6px;white-space:nowrap;}
   table.list td{padding:9px 6px;border-bottom:1px dashed var(--line);vertical-align:middle;white-space:nowrap;}
   table.list tbody tr{cursor:pointer;}
-  table.list th.col-region,table.list td.col-region{width:56px;max-width:56px;white-space:normal;word-break:keep-all;line-height:1.35;}
+  table.list th.col-region,table.list td.col-region{width:108px;max-width:108px;white-space:normal;word-break:keep-all;line-height:1.35;}
+  table.list th.col-upload,table.list td.col-upload{width:1%;}
+  table.list .center{text-align:center;}
   table.list tbody tr:hover{background:var(--green-tint);}
   table.list tr.cut td{border-bottom:2px solid var(--green);}
   .num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:center;}
@@ -220,7 +222,7 @@
         <option value="">확정여부 전체</option><option>확정</option><option>고민중</option><option>기다림</option><option>포기</option><option value="none">미선택</option>
       </select>
       <select id="sortSel">
-        <option value="total">전형총점 높은 순</option><option value="upload">업로드날짜 순</option><option value="recent">최근 입력 순</option><option value="name">이름 순</option>
+        <option value="upload" selected>최근 업로드 순</option><option value="total">전형총점 높은 순</option><option value="recent">최근 입력 순</option><option value="name">이름 순</option>
       </select>
       <input type="text" id="searchInput" placeholder="이름 · 중학교 검색">
     </div>
@@ -437,7 +439,7 @@ const LOG_TYPE = ['방문','전화'];
 const LOG_WILL = ['강함','상','중상','중','중하','하'];
 
 let scores = [], responses = [], logs = [];
-let view = 'all', search = '', decFilter = '', sortMode = 'total';
+let view = 'all', search = '', decFilter = '', sortMode = 'upload';
 let genderF = '', regionF = '', pctMin = null, pctMax = null, totMin = null, totMax = null;
 let editing = null;       // {id|null, d}
 let openCounsel = null;   // 상담기록 창에 열린 학생 id
@@ -553,7 +555,7 @@ function sortedList(){
   const ms = d => d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now();
   if(sortMode==='name') list.sort((a,b) => String(a.d.name||'').localeCompare(String(b.d.name||''),'ko'));
   else if(sortMode==='recent') list.sort((a,b) => ms(b.d)-ms(a.d));
-  else if(sortMode==='upload') list.sort((a,b) => String(a.d.uploadDate||'9999').localeCompare(String(b.d.uploadDate||'9999')) || ms(a.d)-ms(b.d));
+  else if(sortMode==='upload') list.sort((a,b) => String(b.d.uploadDate||'').localeCompare(String(a.d.uploadDate||'')) || ms(b.d)-ms(a.d));
   else list.sort((a,b) => (b.c.total??-1)-(a.c.total??-1) || (b.d.kyo??-1)-(a.d.kyo??-1) || (b.d.chul??-1)-(a.d.chul??-1) || (b.d.hwal??-1)-(a.d.hwal??-1) || String(a.d.name||'').localeCompare(String(b.d.name||''),'ko'));
   return list;
 }
@@ -597,7 +599,7 @@ function render(){
     return;
   }
   $('#listWrap').innerHTML = `<div class="table-scroll"><table class="list">
-    <thead><tr><th style="text-align:center">순번</th><th>업로드날짜</th><th>이름</th><th>성별</th><th>중학교</th><th class="col-region">지역</th><th>학생 연락처</th><th>학부모 연락처</th>
+    <thead><tr><th style="text-align:center">순번</th><th class="col-upload">업로드날짜</th><th class="center">이름</th><th class="center">성별</th><th class="center">전형구분</th><th>중학교</th><th class="col-region">지역</th><th>학생 연락처</th><th>학부모 연락처</th>
       <th class="num">석차백분위</th><th class="num">백분위총점</th><th class="num">지정과목</th><th class="num">전형총점</th>
       <th>확정여부</th><th>상태</th><th>상담기록</th></tr></thead>
     <tbody>${list.map(({d,c},i) => {
@@ -608,9 +610,9 @@ function render(){
       const n = logsOf(d).length;
       return `<tr data-id="${d.id}">
         <td class="num" style="text-align:center">${i+1}</td>
-        <td><input type="date" class="update-in" data-up="${d.id}" value="${esc(d.uploadDate||'')}" aria-label="업로드날짜"></td>
-        <td><b>${esc(d.name)}</b>${(d.photos||[]).length?`<a class="photo-link" href="${esc(d.photos[0])}" target="_blank" rel="noopener">성적표${d.photos.length>1?' '+d.photos.length:''}</a>`:''}${d.track==='지역'?' <span class="pill gray">지역전형</span>':''}${d.type==='검정고시'?' <span class="pill gray">검정</span>':''}</td>
-        <td>${esc(d.gender)||'—'}</td><td>${esc(d.school)||'—'}</td><td class="col-region">${esc(d.region)||'—'}</td>
+        <td class="col-upload"><input type="date" class="update-in" data-up="${d.id}" value="${esc(d.uploadDate||'')}" aria-label="업로드날짜"></td>
+        <td class="center"><b>${esc(d.name)}</b>${d.type==='검정고시'?' <span class="pill gray">검정</span>':''}</td>
+        <td class="center">${esc(d.gender)||'—'}</td><td class="center">${d.track==='지역'?'지역전형':'일반전형'}</td><td>${esc(d.school)||'—'}</td><td class="col-region">${esc(d.region)||'—'}</td>
         <td class="mono" style="font-size:12px">${esc(d.studentPhone)||'—'}</td><td class="mono" style="font-size:12px">${esc(d.guardianPhone)||'—'}</td>
         <td class="num">${d.pct==null?'—':fmt(d.pct)}</td>
         <td class="num">${fmt(c.naesin)}</td><td class="num">${fmt(c.desig)}</td><td class="num total">${fmt(c.total)}</td>
@@ -654,8 +656,38 @@ function openEditor(id){
   $('#scrim').hidden = false; $('#drawer').hidden = false;
   setTimeout(() => (id ? $('#fPct') : $('#fName')).focus(), 50);
 }
+// ---------- 성적표 사진을 새 창으로, 가능하면 다른 모니터에 열기 ----------
+// 크롬·엣지는 처음 한 번 "창 관리" 권한을 물어봐요. 허용하면 다른 모니터에 꽉 차게 열리고,
+// 허용하지 않거나 모니터가 하나면 지금 화면의 오른쪽 절반에 열려요. 같은 창을 재사용해요.
+const PHOTO_WIN = 'okyaScorePhoto';
+async function openPhotoWindow(url){
+  const sa = screen;
+  const half = Math.round(sa.availWidth / 2);
+  const fb = { left:(sa.availLeft||0) + sa.availWidth - half, top:(sa.availTop||0), width:half, height:sa.availHeight };
+  // 팝업 차단을 피하려고 클릭 직후 빈 창부터 연다
+  const win = window.open('about:blank', PHOTO_WIN, `popup,left=${fb.left},top=${fb.top},width=${fb.width},height=${fb.height}`);
+  if(!win){ alert('팝업이 차단되었어요. 주소창 오른쪽의 팝업 차단 아이콘을 눌러 이 사이트의 팝업을 허용해 주세요.'); return; }
+  let place = fb;
+  try{
+    if('getScreenDetails' in window){
+      const sd = await window.getScreenDetails();
+      const other = sd.screens.find(x => x !== sd.currentScreen);
+      if(other) place = { left:other.availLeft, top:other.availTop, width:other.availWidth, height:other.availHeight };
+    }
+  }catch(err){ /* 권한 거부 또는 미지원: 오른쪽 절반 */ }
+  try{ win.moveTo(place.left, place.top); win.resizeTo(place.width, place.height); }catch(err){}
+  win.location.href = url;
+  win.focus();
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[data-photo]');
+  if(!a) return;
+  e.preventDefault(); e.stopPropagation();
+  openPhotoWindow(a.href);
+});
+
 function photoLinks(d){
-  return (d.photos||[]).map((u,i) => `<a class="photo-link" href="${esc(u)}" target="_blank" rel="noopener">사진 ${i+1} 열기</a>`).join('');
+  return (d.photos||[]).map((u,i) => `<a class="photo-link" href="${esc(u)}" data-photo="1" target="_blank" rel="noopener">사진 ${i+1} 열기</a>`).join('');
 }
 function drawPhotos(){
   const d = editing?.d;
