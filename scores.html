@@ -61,6 +61,8 @@
   table.list th.col-region,table.list td.col-region{width:108px;max-width:108px;white-space:normal;word-break:keep-all;line-height:1.35;}
   table.list th.col-upload,table.list td.col-upload{width:1%;}
   table.list .center{text-align:center;}
+  .sms-btn{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700;width:34px;height:26px;border-radius:6px;cursor:pointer;border:1px solid #E9C4B0;background:var(--red-tint);color:var(--red);}
+  .sms-btn.on{border-color:#B9D3BD;background:var(--green-tint);color:var(--green);}
   table.list tbody tr:hover{background:var(--green-tint);}
   table.list tr.cut td{border-bottom:2px solid var(--green);}
   .num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;text-align:center;}
@@ -601,7 +603,7 @@ function render(){
   $('#listWrap').innerHTML = `<div class="table-scroll"><table class="list">
     <thead><tr><th style="text-align:center">순번</th><th class="col-upload">업로드날짜</th><th class="center">이름</th><th class="center">성별</th><th class="center">전형구분</th><th>중학교</th><th class="col-region">지역</th><th>학생 연락처</th><th>학부모 연락처</th>
       <th class="num">석차백분위</th><th class="num">백분위총점</th><th class="num">지정과목</th><th class="num">전형총점</th>
-      <th>확정여부</th><th>상태</th><th>상담기록</th></tr></thead>
+      <th>확정여부</th><th>상태</th><th>상담기록</th><th class="center">문자확인</th></tr></thead>
     <tbody>${list.map(({d,c},i) => {
       const st = [];
       st.push(d.checked ? '<span class="pill pass">검토 완료</span>' : '<span class="pill gray">미검토</span>');
@@ -618,7 +620,8 @@ function render(){
         <td class="num">${fmt(c.naesin)}</td><td class="num">${fmt(c.desig)}</td><td class="num total">${fmt(c.total)}</td>
         <td>${decSelect(d.id, d.decision||'')}</td>
         <td>${st.join('')}</td>
-        <td><button class="btn ghost small" data-counsel="${d.id}">보기${n?` (${n})`:''}</button></td></tr>`;
+        <td><button class="btn ghost small" data-counsel="${d.id}">보기${n?` (${n})`:''}</button></td>
+        <td class="center"><button class="sms-btn ${d.smsSent?'on':''}" data-sms="${d.id}" title="${d.smsSent?'문자 보냄 · 누르면 X로':'문자 안 보냄 · 누르면 O로'}">${d.smsSent?'O':'X'}</button></td></tr>`;
     }).join('')}</tbody></table></div>`;
   setupColResize($('#listWrap').querySelector('table.list'));
   $('#listWrap').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => {
@@ -626,6 +629,15 @@ function render(){
     openEditor(tr.dataset.id);
   });
   $('#listWrap').querySelectorAll('[data-dec]').forEach(sel => sel.onchange = () => setDecision(sel.dataset.dec, sel.value));
+  // 문자확인: 누를 때마다 X ↔ O
+  $('#listWrap').querySelectorAll('[data-sms]').forEach(btn => btn.onclick = async e => {
+    e.stopPropagation();
+    const d = scores.find(x => x.id === btn.dataset.sms); if(!d) return;
+    const v = !d.smsSent;
+    btn.disabled = true;
+    try{ await updateDoc(doc(db, SCORES, d.id), { smsSent: v, smsAt: v ? serverTimestamp() : null, updatedAt: serverTimestamp() }); }
+    catch(err){ alert('문자확인을 저장하지 못했습니다: ' + err.message); btn.disabled = false; }
+  });
   $('#listWrap').querySelectorAll('[data-up]').forEach(inp => inp.onchange = async () => {
     try{ await updateDoc(doc(db, SCORES, inp.dataset.up), { uploadDate: inp.value, updatedAt: serverTimestamp() }); }
     catch(err){ alert('업로드날짜를 저장하지 못했습니다: ' + err.message); }
@@ -980,7 +992,7 @@ $('#exportBtn').onclick = () => {
     const o = { '순번':i+1, '업로드날짜':d.uploadDate||'', '이름':d.name, '성별':d.gender||'', '중학교':d.school||'', '지역':d.region||'',
       '학생 연락처':d.studentPhone||'', '학부모 연락처':d.guardianPhone||'',
       '석차백분위':d.pct??'', '백분위총점':c.naesin??'', '지정과목':c.desig??'', '전형총점':c.total??'',
-      '확정여부':d.decision||'', '상태':d.checked?'검토 완료':'미검토', '상담 횟수':logsOf(d).length||'',
+      '확정여부':d.decision||'', '상태':d.checked?'검토 완료':'미검토', '상담 횟수':logsOf(d).length||'', '문자확인':d.smsSent?'O':'X',
       '전형':d.track+'전형', '구분':d.type==='검정고시'?'검정고시':'중학교' };
     SEMS.forEach(s => SUBJ.forEach(k => o[`${s} ${k}`] = eg[s]?.[k] || ''));
     o['자유학기'] = SEMS.filter(s => d.free?.[s]).join(', ');
