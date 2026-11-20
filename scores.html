@@ -703,8 +703,64 @@ function photoLinks(d){
 }
 function drawPhotos(){
   const d = editing?.d;
-  $('#photoArea').innerHTML = d && (d.photos||[]).length
-    ? `<div class="importbox done"><div class="photos-box"><b>성적표 사진</b>${photoLinks(d)}</div><span class="hint" style="font-size:12px">구글 드라이브에서 열려요</span></div>` : '';
+  if(!d){ $('#photoArea').innerHTML = ''; return; }
+  const has = (d.photos||[]).length;
+  $('#photoArea').innerHTML = `<div class="importbox ${has?'done':''}"><div class="photos-box"><b>성적표 사진</b>${has ? photoLinks(d) : '<span class="hint" style="font-size:12px">아직 없음</span>'}
+      <label class="btn ghost small" style="cursor:pointer;margin-left:auto">+ 사진 올리기<input type="file" id="photoUpIn" accept="image/*,application/pdf" multiple hidden></label></div>
+    <span class="hint" id="photoUpMsg" style="font-size:12px">구글 드라이브(설문 사진과 같은 폴더)에 저장되고, 드라이브에서 열려요</span></div>`;
+  $('#photoUpIn').onchange = e => uploadPhotos([...e.target.files]);
+}
+
+// ---------- 수기 입력용 성적표 사진 올리기 (구글 드라이브, Apps Script 경유) ----------
+// 사진은 긴 변 2000px JPEG로 줄여서 보냄 (PDF·HEIC 등 줄일 수 없는 파일은 그대로)
+function shrinkImage(file){
+  return new Promise(resolve => {
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type)) return resolve(null);
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 2000 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      resolve({ type:'image/jpeg', data: c.toDataURL('image/jpeg', 0.85).split(',')[1] });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+function fileToB64(file){
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
+}
+async function uploadPhotos(files){
+  if(!files.length || !editing) return;
+  const msg = t => { const m = $('#photoUpMsg'); if(m) m.textContent = t; };
+  const set = await loadSetting();
+  if(!set || !set.url || !set.key){ alert('먼저 ‘⚙ 시트 연결’을 설정해 주세요. 사진도 같은 연결로 드라이브에 올라가요.'); return; }
+  const name = ($('#fName')?.value || editing.d.name || '').trim();
+  if(!name){ alert('학생 이름을 먼저 입력해 주세요. 파일 이름에 쓰여요.'); return; }
+  const big = files.find(f => f.size > 20*1024*1024);
+  if(big){ alert(`${big.name} 파일이 20MB보다 커요. 사진을 줄여서 올려 주세요.`); return; }
+  msg(`${files.length}개 올리는 중이에요...`);
+  try{
+    const payload = [];
+    for(const f of files){
+      const small = await shrinkImage(f);
+      const ext = small ? 'jpg' : (f.name.split('.').pop() || 'bin');
+      payload.push({ name: `${name}_수기_${today()}_${payload.length+1}.${ext}`, type: small ? small.type : (f.type || 'application/octet-stream'), data: small ? small.data : await fileToB64(f) });
+    }
+    // text/plain 으로 보내야 Apps Script 웹 앱이 CORS 사전요청 없이 받는다
+    const res = await fetch(set.url, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify({ action:'upload', key:set.key, files:payload }) });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error === 'unauthorized' ? '비밀 키가 맞지 않아요' : (data.error || '알 수 없는 오류'));
+    if(!editing) return;
+    editing.d.photos = [...(editing.d.photos||[]), ...data.urls];
+    if(editing.id) await updateDoc(doc(db, SCORES, editing.id), { photos: arrayUnion(...data.urls), updatedAt: serverTimestamp() });
+    drawPhotos();
+    msg(editing.id ? `${data.urls.length}개 올렸어요.` : `${data.urls.length}개 올렸어요. ‘저장’을 눌러야 학생에게 연결돼요.`);
+  }catch(err){
+    console.error(err);
+    msg('올리지 못했어요: ' + err.message);
+    alert('사진을 올리지 못했어요.\n' + err.message + '\n\nApps Script에 사진 올리기 기능(doPost)을 추가하고 새 버전으로 배포했는지 확인해 주세요.');
+  }
 }
 function closeEditor(){ editing = null; $('#scrim').hidden = true; $('#drawer').hidden = true; }
 function readForm(){
