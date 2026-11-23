@@ -537,7 +537,31 @@ function rebuildLogKeys(){
   });
 }
 const logKeyOf = l => logKeyCache.get(l.id);
-const studentKeyOf = d => d.logKey || identityKey(d.name, d.guardianPhone || d.studentPhone, d.school);
+
+// ---------- 성적관리 학생 ↔ 상담일지 연결 (scores.html·admin.html 같은 규칙) ----------
+// 1) 저장된 연결(logKey)이 있으면 그것  2) 이름+연락처 키가 정확히 같으면 그것
+// 3) 없으면 이름이 같고, 연락처(학부모·학생 중 하나) 또는 중학교가 같은 상담일지 학생 1명에 연결
+//    (같은 이름의 성적관리 학생이 2명 이상이면 동명이인일 수 있어 자동 연결하지 않음)
+const looseSchool = v => String(v||'').replace(/\s/g,'').replace(/학교$/,'');
+function linkKeyOf(d, allScores){
+  const exact = d.logKey || identityKey(d.name, d.guardianPhone || d.studentPhone, d.school);
+  if(d.logKey || logs.some(l => logKeyOf(l) === exact)) return exact;
+  const name = String(d.name||'').trim();
+  if(!name) return exact;
+  if((allScores||[]).filter(x => String(x.name||'').trim() === name).length > 1) return exact;
+  const phones = [d.guardianPhone, d.studentPhone].map(phoneDigits).filter(Boolean);
+  const sch = looseSchool(d.school);
+  const keys = new Set();
+  logs.forEach(l => {
+    if(String(l.name||'').trim() !== name) return;
+    const lp = [l.guardianPhone, l.studentPhone].map(phoneDigits).filter(Boolean);
+    const ls = looseSchool(l.middleSchool);
+    const hit = lp.some(p => phones.includes(p)) || (sch && ls && ls === sch) || (!lp.length && !ls);
+    if(hit) keys.add(logKeyOf(l));
+  });
+  return keys.size === 1 ? [...keys][0] : exact;
+}
+const studentKeyOf = d => linkKeyOf(d, scores);
 const logsOf = d => logs.filter(l => logKeyOf(l) === studentKeyOf(d))
   .sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')) || ((a.createdAt?.toMillis?.()||0) - (b.createdAt?.toMillis?.()||0)));
 

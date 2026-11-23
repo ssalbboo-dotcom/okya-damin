@@ -1107,6 +1107,7 @@ document.getElementById('calDetailToListBtn').addEventListener('click', () => {
 // 내신성적(등수)/연락처(학생)/연락처(보호자)/입학의지(상담이후)/내담자/상담자/상담요약)
 // ------------------------------------------------------------------
 let logs = [];
+let admScores = [];   // 성적관리(scores.html) 학생
 let logFilterName = '';
 let logFilterSchool = '';
 let logFilterCounselor = '';
@@ -1126,6 +1127,25 @@ onSnapshot(collection(db, 'counselingLogs'), snap => {
   if(openLogKey) renderLogCardModal();
 });
 
+// 성적관리(scores.html)에 먼저 들어온 학생도 상담일지관리에 "상담 전" 학생으로 보이게 한다 (기록을 새로 만들지는 않음)
+onSnapshot(collection(db, 'admissionScores'), snap => {
+  admScores = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  renderLogs();
+}, err => console.warn('성적관리 학생을 불러오지 못했습니다', err));
+function scoreOnlyStudents(){
+  return admScores.filter(d => String(d.name||'').trim() && !logs.some(l => logKeyOf(l) === linkKeyOf(d, admScores)));
+}
+function openScoreStudentCard(d){
+  const key = linkKeyOf(d, admScores);
+  logAddSeed = {
+    consultType:'', date:'', gender: d.gender || '', grade: '', region: d.region || '', middleSchool: d.school || '',
+    gradeRank: d.pct == null || d.pct === '' ? '' : `석차백분위 ${d.pct}%`,
+    studentPhone: d.studentPhone || '', guardianPhone: d.guardianPhone || '', admissionWill:'', visitor:''
+  };
+  logAddSeedKey = key; logAddSeedName = String(d.name).trim();
+  openLogCard(key, String(d.name).trim());
+}
+
 // ------------------------------------------------------------------
 // 학생 구분 규칙 (동명이인 대비)
 //  1) 연락처(보호자 우선, 없으면 학생)가 있으면 → 이름 + 연락처 숫자
@@ -1138,6 +1158,31 @@ function identityKey(name, phone, school){
   const n = String(name||'').trim();
   const p = phoneDigits(phone);
   return p ? `${n}__p${p}` : `${n}__s${normSchool(school)}`;
+}
+
+
+// ---------- 성적관리 학생 ↔ 상담일지 연결 (scores.html·admin.html 같은 규칙) ----------
+// 1) 저장된 연결(logKey)이 있으면 그것  2) 이름+연락처 키가 정확히 같으면 그것
+// 3) 없으면 이름이 같고, 연락처(학부모·학생 중 하나) 또는 중학교가 같은 상담일지 학생 1명에 연결
+//    (같은 이름의 성적관리 학생이 2명 이상이면 동명이인일 수 있어 자동 연결하지 않음)
+const looseSchool = v => String(v||'').replace(/\s/g,'').replace(/학교$/,'');
+function linkKeyOf(d, allScores){
+  const exact = d.logKey || identityKey(d.name, d.guardianPhone || d.studentPhone, d.school);
+  if(d.logKey || logs.some(l => logKeyOf(l) === exact)) return exact;
+  const name = String(d.name||'').trim();
+  if(!name) return exact;
+  if((allScores||[]).filter(x => String(x.name||'').trim() === name).length > 1) return exact;
+  const phones = [d.guardianPhone, d.studentPhone].map(phoneDigits).filter(Boolean);
+  const sch = looseSchool(d.school);
+  const keys = new Set();
+  logs.forEach(l => {
+    if(String(l.name||'').trim() !== name) return;
+    const lp = [l.guardianPhone, l.studentPhone].map(phoneDigits).filter(Boolean);
+    const ls = looseSchool(l.middleSchool);
+    const hit = lp.some(p => phones.includes(p)) || (sch && ls && ls === sch) || (!lp.length && !ls);
+    if(hit) keys.add(logKeyOf(l));
+  });
+  return keys.size === 1 ? [...keys][0] : exact;
 }
 
 // 기록마다 학생 키 계산 (연락처 없는 옛 기록은, 같은 이름·같은 학교의 연락처 있는 기록이 있으면 그쪽에 합류)
@@ -1169,6 +1214,25 @@ function logCountForKey(key){
 }
 
 function logRowHtml(r, i){
+  if(r._score){
+    const d = r._score;
+    return `
+    <tr style="background:#FBFAF4;">
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;color:var(--ink-soft);">${i + 1}</td>
+      <td style="color:var(--muted);">—</td>
+      <td><span class="chip" style="background:#FFF4D6;color:#8A6200;">성적 접수 · 상담 전</span></td>
+      <td>
+        <span class="name-link" data-scoreopen="${escapeHtml(d.id)}">${escapeHtml(d.name||'')}</span>
+        ${d.school ? `<span class="log-meta">(${escapeHtml(d.school)})</span>` : ''}
+        <span class="log-count-badge zero">0회</span>
+      </td>
+      <td></td>
+      <td>${escapeHtml(d.school||'')}</td>
+      <td></td>
+      <td style="color:var(--muted);">성적관리에 등록됨${d.uploadDate ? ` (업로드 ${escapeHtml(d.uploadDate)})` : ''} · 이름을 누르면 상담 기록을 추가할 수 있어요</td>
+      <td></td>
+    </tr>`;
+  }
   const preview = String(r.summary||'').slice(0, 40);
   const key = logKeyOf(r);
   return `
@@ -1201,6 +1265,15 @@ function renderLogs(){
     if(logFilterDateEnd && r.date > logFilterDateEnd) return false;
     return true;
   });
+
+  // 성적만 접수되고 상담 기록이 없는 학생 (상담자·날짜 조건이 걸려 있으면 숨김)
+  if(!logFilterCounselor && !logFilterDateStart && !logFilterDateEnd){
+    scoreOnlyStudents().forEach(d => {
+      if(logFilterName && !String(d.name||'').includes(logFilterName)) return;
+      if(logFilterSchool && !String(d.school||'').includes(logFilterSchool)) return;
+      filtered.push({ _score: d, id: 'score_' + d.id, name: d.name, middleSchool: d.school || '', date: '', createdAt: d.createdAt || null });
+    });
+  }
 
   if(filtered.length === 0){
     wrap.innerHTML = logs.length === 0
@@ -1239,6 +1312,12 @@ function renderLogs(){
       if(confirm('이 상담일지를 삭제할까요?')){
         await deleteDoc(doc(db, 'counselingLogs', btn.getAttribute('data-logdel')));
       }
+    });
+  });
+  wrap.querySelectorAll('[data-scoreopen]').forEach(el => {
+    el.addEventListener('click', () => {
+      const d = admScores.find(x => x.id === el.getAttribute('data-scoreopen'));
+      if(d) openScoreStudentCard(d);
     });
   });
   wrap.querySelectorAll('[data-lognameclick]').forEach(el => {
@@ -1482,6 +1561,15 @@ document.getElementById('logAddBtn').addEventListener('click', async () => {
 document.getElementById('logAddNewBtn').addEventListener('click', () => {
   const name = prompt('상담 기록을 추가할 학생(또는 문의자) 이름을 입력하세요');
   if(!name || !name.trim()) return;
+  // 성적관리에 먼저 등록된 같은 이름의 학생이 있으면 그 학생으로 이어서 기록
+  const sameName = scoreOnlyStudents().filter(d => String(d.name||'').trim() === name.trim());
+  for(const d of sameName){
+    const info = [d.school, d.guardianPhone ? '학부모 ' + d.guardianPhone : ''].filter(Boolean).join(', ');
+    if(confirm(`성적관리에 ${name.trim()}${info ? ' (' + info + ')' : ''} 학생이 있습니다.\n같은 학생이면 [확인]을 눌러 그 학생으로 상담을 기록하세요.`)){
+      openScoreStudentCard(d);
+      return;
+    }
+  }
   const phone = prompt('보호자 연락처를 입력하세요 (동명이인 구분용)\n모르면 비워두고, 다음 창에서 학교 이름을 입력하세요.') || '';
   let school = '';
   if(!phoneDigits(phone)){
