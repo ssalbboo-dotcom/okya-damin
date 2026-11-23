@@ -76,6 +76,13 @@
   .decstat .v div{display:flex;flex-direction:column;}
   .decstat .v span{font-size:11px;color:var(--ink-soft);}
   .decstat .v b{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--ink);}
+  .decstats{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;}
+  .decstat.pool{border-color:var(--line);background:var(--paper);}
+  .decstat.pool .t{color:var(--ink-soft);}
+  /* 홀수 순번 줄 연한 회색 음영 */
+  table.list tbody tr:nth-child(odd) > td{background:#F6F5F1;}
+  /* 지역전형 강조 */
+  .track-local{display:inline-block;padding:1px 7px;border:1.5px solid var(--green);border-radius:5px;background:var(--green-tint);color:var(--green);font-weight:700;}
   .update-in{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);}
   .logitem .lact{margin-left:auto;display:flex;gap:6px;}
   .logitem.editing{border-color:var(--green-soft);background:var(--bg);display:flex;flex-direction:column;gap:10px;}
@@ -176,6 +183,9 @@
   .lock-card input{width:100%;font-family:'Pretendard';font-size:15px;padding:11px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-bottom:10px;}
   .lock-card .btn{width:100%;padding:11px;}
   .lock-error{color:var(--red);font-size:12px;min-height:18px;margin-top:8px;}
+
+  .page-switch{margin-left:auto;font-family:'Pretendard',sans-serif;font-size:24px;font-weight:700;line-height:1.2;padding:7px 18px;border:1.5px solid var(--green);border-radius:9px;color:var(--green);background:#fff;text-decoration:none;white-space:nowrap;}
+  .page-switch:hover{background:var(--green-tint);}
 </style>
 </head>
 <body class="locked">
@@ -194,13 +204,14 @@
 <div id="configNotice"></div>
 
 <header>
-  <div>
+  <div style="flex:1;min-width:0;">
     <p class="eyebrow">2027학년도 신입생 입학전형</p>
-    <h1>신입생 성적 관리 <button class="title-edit-btn" onclick="lockPage()">로그아웃</button></h1>
-    <p class="sub">성적을 입력하면 요강 기준 전형총점을 계산하고, 학생별 상담 기록을 함께 관리합니다.</p>
-    <p style="margin:12px 0 0;"><a class="btn ghost small" href="admin.html" style="text-decoration:none;">← 상담 관리로</a></p>
+    <h1 style="display:flex;align-items:center;gap:8px;">신입생 성적 관리 <button class="title-edit-btn" onclick="lockPage()">로그아웃</button><a class="page-switch" href="admin.html">← 상담 관리로</a></h1>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+  <p class="sub">성적을 입력하면 요강 기준 전형총점을 계산하고, 학생별 상담 기록을 함께 관리합니다.</p>
+    <div class="formula">전형총점 400 = <b>(100 − 석차백분율) × 2</b> + <b>2·3학년 국·수·영 200</b></div>
+    </div>
   </div>
-  <div class="formula">전형총점 400 = <b>(100 − 석차백분율) × 2</b> + <b>2·3학년 국·수·영 200</b></div>
 </header>
 
 <main>
@@ -237,12 +248,21 @@
       <span class="hint" id="filterCount"></span>
     </div>
     </div>
-    <div class="decstat" aria-live="polite">
-      <p class="t">확정된 학생의 석차백분위 <span id="decN" style="font-weight:500;color:var(--ink-soft)"></span></p>
+    <div class="decstats" aria-live="polite">
+    <div class="decstat pool">
+      <p class="t"><span class="decTrack"></span> 확정, 고민중, 기다림 학생의 성적 <span id="poolN" style="font-weight:500;color:var(--ink-soft)"></span></p>
+      <div class="v">
+        <div><span>평균</span><b id="poolAvg">—</b></div>
+        <div><span>최저점 (가장 큰 백분위)</span><b id="poolMin">—</b></div>
+      </div>
+    </div>
+    <div class="decstat">
+      <p class="t"><span class="decTrack"></span> 확정 학생의 성적 <span id="decN" style="font-weight:500;color:var(--ink-soft)"></span></p>
       <div class="v">
         <div><span>평균</span><b id="decAvg">—</b></div>
         <div><span>최저점 (가장 큰 백분위)</span><b id="decMin">—</b></div>
       </div>
+    </div>
     </div></div>
     <div class="stats" id="stats"></div>
     <div id="listWrap"><p class="empty">불러오는 중...</p></div>
@@ -574,12 +594,20 @@ function fillRegions(){
   sel.value = (cur==='__none' && hasEmpty) || regions.includes(cur) ? cur : '';
   regionF = sel.value;
 }
+// 위쪽 전체/일반전형/지역전형 버튼에 따라 그 전형 학생만 계산 (검색 조건과는 무관)
 function renderDecStat(){
-  const P = scores.filter(d => d.decision==='확정' && d.pct!=null).map(d => Number(d.pct));
-  const n = scores.filter(d => d.decision==='확정').length;
-  $('#decN').textContent = n ? `(${n}명${P.length<n?`, 백분위 입력 ${P.length}명`:''})` : '(아직 없음)';
-  $('#decAvg').textContent = P.length ? fmt(P.reduce((a,b)=>a+b,0)/P.length) + '%' : '—';
-  $('#decMin').textContent = P.length ? fmt(Math.max(...P)) + '%' : '—';
+  const inView = scores.filter(d => view==='all' || d.track===view);
+  const label = view==='all' ? '[전체]' : view==='지역' ? '[지역전형]' : '[일반전형]';
+  document.querySelectorAll('.decTrack').forEach(el => el.textContent = label);
+  const fill = (group, nId, avgId, minId) => {
+    const P = group.filter(d => d.pct!=null && d.pct!=='').map(d => Number(d.pct)).filter(v => !isNaN(v));
+    const n = group.length;
+    $('#'+nId).textContent = n ? `(${n}명${P.length<n?`, 백분위 입력 ${P.length}명`:''})` : '(아직 없음)';
+    $('#'+avgId).textContent = P.length ? fmt(P.reduce((a,b)=>a+b,0)/P.length) + '%' : '—';
+    $('#'+minId).textContent = P.length ? fmt(Math.max(...P)) + '%' : '—';
+  };
+  fill(inView.filter(d => ['확정','고민중','기다림'].includes(d.decision)), 'poolN', 'poolAvg', 'poolMin');
+  fill(inView.filter(d => d.decision==='확정'), 'decN', 'decAvg', 'decMin');
 }
 function render(){
   renderDecStat();
@@ -614,7 +642,7 @@ function render(){
         <td class="num" style="text-align:center">${i+1}</td>
         <td class="col-upload"><input type="date" class="update-in" data-up="${d.id}" value="${esc(d.uploadDate||'')}" aria-label="업로드날짜"></td>
         <td class="center"><b>${esc(d.name)}</b>${d.type==='검정고시'?' <span class="pill gray">검정</span>':''}</td>
-        <td class="center">${esc(d.gender)||'—'}</td><td class="center">${d.track==='지역'?'지역전형':'일반전형'}</td><td>${esc(d.school)||'—'}</td><td class="col-region">${esc(d.region)||'—'}</td>
+        <td class="center">${esc(d.gender)||'—'}</td><td class="center">${d.track==='지역'?'<span class="track-local">지역전형</span>':'일반전형'}</td><td>${esc(d.school)||'—'}</td><td class="col-region">${esc(d.region)||'—'}</td>
         <td class="mono" style="font-size:12px">${esc(d.studentPhone)||'—'}</td><td class="mono" style="font-size:12px">${esc(d.guardianPhone)||'—'}</td>
         <td class="num">${d.pct==null?'—':fmt(d.pct)}</td>
         <td class="num">${fmt(c.naesin)}</td><td class="num">${fmt(c.desig)}</td><td class="num total">${fmt(c.total)}</td>
