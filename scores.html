@@ -76,6 +76,11 @@
   .decstat .v div{display:flex;flex-direction:column;}
   .decstat .v span{font-size:11px;color:var(--ink-soft);}
   .decstat .v b{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--ink);}
+  .stat-tbl{border-collapse:collapse;margin-top:8px;font-size:12px;}
+  .stat-tbl th,.stat-tbl td{border:1px solid var(--line);padding:4px 10px;text-align:center;white-space:nowrap;}
+  .stat-tbl th{background:rgba(0,0,0,.03);color:var(--ink-soft);font-weight:600;}
+  .stat-tbl th small{display:block;font-size:10px;font-weight:500;color:var(--muted);}
+  .stat-tbl td{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;color:var(--ink);background:#fff;}
   .decstats{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;}
   .decstat.pool{border-color:var(--line);background:var(--paper);}
   .decstat.pool .t{color:var(--ink-soft);}
@@ -251,17 +256,17 @@
     <div class="decstats" aria-live="polite">
     <div class="decstat pool">
       <p class="t"><span class="decTrack"></span> 확정, 고민중, 기다림 학생의 성적 <span id="poolN" style="font-weight:500;color:var(--ink-soft)"></span></p>
-      <div class="v">
-        <div><span>평균</span><b id="poolAvg">—</b></div>
-        <div><span>최저점 (가장 큰 백분위)</span><b id="poolMin">—</b></div>
-      </div>
+      <table class="stat-tbl">
+        <thead><tr><th>평균</th><th>최저점<small>(가장 큰 백분위)</small></th><th>남</th><th>여</th><th>전체</th></tr></thead>
+        <tbody><tr><td id="poolAvg">—</td><td id="poolMin">—</td><td id="poolM">0</td><td id="poolF">0</td><td id="poolT">0</td></tr></tbody>
+      </table>
     </div>
     <div class="decstat">
       <p class="t"><span class="decTrack"></span> 확정 학생의 성적 <span id="decN" style="font-weight:500;color:var(--ink-soft)"></span></p>
-      <div class="v">
-        <div><span>평균</span><b id="decAvg">—</b></div>
-        <div><span>최저점 (가장 큰 백분위)</span><b id="decMin">—</b></div>
-      </div>
+      <table class="stat-tbl">
+        <thead><tr><th>평균</th><th>최저점<small>(가장 큰 백분위)</small></th><th>남</th><th>여</th><th>전체</th></tr></thead>
+        <tbody><tr><td id="decAvg">—</td><td id="decMin">—</td><td id="decM">0</td><td id="decF">0</td><td id="decT">0</td></tr></tbody>
+      </table>
     </div>
     </div></div>
     <div class="stats" id="stats"></div>
@@ -623,15 +628,18 @@ function renderDecStat(){
   const inView = scores.filter(d => view==='all' || d.track===view);
   const label = view==='all' ? '[전체]' : view==='지역' ? '[지역전형]' : '[일반전형]';
   document.querySelectorAll('.decTrack').forEach(el => el.textContent = label);
-  const fill = (group, nId, avgId, minId) => {
+  const fill = (group, p) => {
     const P = group.filter(d => d.pct!=null && d.pct!=='').map(d => Number(d.pct)).filter(v => !isNaN(v));
     const n = group.length;
-    $('#'+nId).textContent = n ? `(${n}명${P.length<n?`, 백분위 입력 ${P.length}명`:''})` : '(아직 없음)';
-    $('#'+avgId).textContent = P.length ? fmt(P.reduce((a,b)=>a+b,0)/P.length) + '%' : '—';
-    $('#'+minId).textContent = P.length ? fmt(Math.max(...P)) + '%' : '—';
+    $('#'+p+'N').textContent = !n ? '(아직 없음)' : P.length < n ? `(백분위 미입력 ${n-P.length}명은 평균·최저점에서 제외)` : '';
+    $('#'+p+'Avg').textContent = P.length ? fmt(P.reduce((a,b)=>a+b,0)/P.length) + '%' : '—';
+    $('#'+p+'Min').textContent = P.length ? fmt(Math.max(...P)) + '%' : '—';
+    $('#'+p+'M').textContent = group.filter(d => normGender(d.gender)==='남').length;
+    $('#'+p+'F').textContent = group.filter(d => normGender(d.gender)==='여').length;
+    $('#'+p+'T').textContent = n;
   };
-  fill(inView.filter(d => ['확정','고민중','기다림'].includes(d.decision)), 'poolN', 'poolAvg', 'poolMin');
-  fill(inView.filter(d => d.decision==='확정'), 'decN', 'decAvg', 'decMin');
+  fill(inView.filter(d => ['확정','고민중','기다림'].includes(d.decision)), 'pool');
+  fill(inView.filter(d => d.decision==='확정'), 'dec');
 }
 function render(){
   renderDecStat();
