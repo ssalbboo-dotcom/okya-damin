@@ -43,8 +43,8 @@
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
   .seg button{font-family:'Pretendard';font-size:13px;padding:7px 12px;border:0;background:var(--bg);color:var(--ink-soft);cursor:pointer;}
   .seg button.on{background:var(--green);color:#fff;font-weight:600;}
-  .stats{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);margin-bottom:14px;}
-  .stats b{font-family:'IBM Plex Mono',monospace;color:var(--ink);}
+  .stats{display:flex;gap:20px;flex-wrap:wrap;font-size:15px;color:var(--ink-soft);margin:0;}
+  .stats b{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--ink);}
   .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   /* 칸 너비 조절: 제목 칸 오른쪽 경계를 끌어서 조절, 더블클릭하면 전체 원래대로 */
   table.list thead th{position:relative;}
@@ -155,6 +155,9 @@
   .modal-scrim{position:fixed;inset:0;background:rgba(20,24,20,.35);z-index:30;}
   [hidden]{display:none !important;}
   .dec{font-family:'Pretendard';font-size:12px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer;}
+  /* 확정 학생 줄: 빨간 음영 + 왼쪽 빨간 띠 */
+  table.list tbody tr.row-confirmed > td{background:#FCE4E1 !important;}
+  table.list tbody tr.row-confirmed > td:first-child{box-shadow:inset 4px 0 0 #C62828;}
   .dec.v-확정{background:var(--green-tint);border-color:#B9D3BD;color:var(--green);font-weight:600;}
   .dec.v-고민중{background:var(--amber-tint);border-color:#E7CF9E;color:var(--amber);font-weight:600;}
   .dec.v-포기{background:var(--sunk);border-color:var(--line);color:var(--muted);font-weight:600;}
@@ -222,7 +225,10 @@
 <main>
   <section class="card">
     <div class="card-head-row">
-      <h2><span class="tag">1</span> 성적 접수 현황</h2>
+      <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+        <h2><span class="tag">1</span> 성적 접수 현황</h2>
+        <div class="stats" id="stats"></div>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn" id="sheetImportBtn">구글 시트 불러오기</button>
         <button class="btn ghost small" id="sheetSettingBtn" title="구글 시트 연결 설정">⚙ 시트 연결</button>
@@ -269,7 +275,6 @@
       </table>
     </div>
     </div></div>
-    <div class="stats" id="stats"></div>
     <div id="listWrap"><p class="empty">불러오는 중...</p></div>
     <p class="hint" style="margin-top:12px;">학생 줄을 누르면 성적을 고칠 수 있어요. 확정여부는 표에서 바로 바꿀 수 있고, 상담기록 ‘보기’에서 새 상담을 쓰면 상담일지관리에도 함께 저장됩니다. 전형총점 순 정렬에서 동점이면 교과 → 출결 → 학교활동 점수 순입니다.</p>
   </section>
@@ -670,7 +675,7 @@ function render(){
       if(d.pct==null) st.push('<span class="pill bad">백분위 없음</span>');
       if(c.missing.length) st.push(`<span class="pill warn">${c.missing.join('·')} 비어 있음</span>`);
       const n = logsOf(d).length;
-      return `<tr data-id="${d.id}">
+      return `<tr data-id="${d.id}"${d.decision==='확정'?' class="row-confirmed"':''}>
         <td class="num" style="text-align:center">${i+1}</td>
         <td class="col-upload"><input type="date" class="update-in" data-up="${d.id}" value="${esc(d.uploadDate||'')}" aria-label="업로드날짜"></td>
         <td class="center"><b>${esc(d.name)}</b>${d.type==='검정고시'?' <span class="pill gray">검정</span>':''}</td>
